@@ -48,7 +48,7 @@ jobs:
         run: |
           pack build --builder paketobuildpacks/builder:base \
           --publish 286292902993.dkr.ecr.us-east-1.amazonaws.com/infra-test:funky-${{ github.event.release.tag_name }}    \
-          --cache-image   286292902993.dkr.ecr.us-east-1.amazonaws.com/infra-test:cache-funky-${{ github.event.release.tag_name }}
+          --cache-image   286292902993.dkr.ecr.us-east-1.amazonaws.com/infra-test:cache-funky
 
       - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
@@ -61,3 +61,6 @@ jobs:
 #
 #
 #aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 286292902993.dkr.ecr.us-east-1.amazonaws.com
+# pack build --builder paketobuildpacks/builder:base \
+#           --publish 286292902993.dkr.ecr.us-east-1.amazonaws.com/infra-test:funky-0    \
+#           --cache-image   286292902993.dkr.ecr.us-east-1.amazonaws.com/infra-test:cache-funky

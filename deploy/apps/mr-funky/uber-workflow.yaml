@@ -119,19 +119,24 @@ spec:
             limits:
               memory: "{{inputs.parameters.memory}}"
       container:
-        command: [
-            python,
-            "/app/cli.py",
-            "run",
-            "-n",
-            "{{workflow.parameters.name}}",
-            "-v",
-            "{{inputs.parameters.event}}",
-            "-m",
-            "{{inputs.parameters.op}}",
-            #for testing pass this to get some dummy payloads
-            #"-t",
-          ]
+        # command: [
+        #     python,
+        #     "/app/cli.py",
+        #     "run",
+        #     "-n",
+        #     "{{workflow.parameters.name}}",
+        #     "-v",
+        #     "{{inputs.parameters.event}}",
+        #     "-m",
+        #     "{{inputs.parameters.op}}",
+        #     #for testing pass this to get some dummy payloads
+        #     #"-t",
+        #   ]
+
+        #still trying to wrap my head around pack
+        env:
+          - name: ARGS
+            value: "run -n {{workflow.parameters.name}} -v {{inputs.parameters.event}} -m {{inputs.parameters.op}}"
 
         #we can pass this in to override later
         #image: "{{workflow.parameters.image}}"

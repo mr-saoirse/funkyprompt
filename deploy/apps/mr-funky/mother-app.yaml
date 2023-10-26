@@ -15,18 +15,21 @@ spec:
       containers:
         - name: my-container
           image: 286292902993.dkr.ecr.us-east-1.amazonaws.com/infra-test
+          env:
+            - name: ARGS
+              value: "serve"
           resources:
             limits:
-              cpu: "0.2"
+              cpu: "1"
               memory: 128Mi
             requests:
-              cpu: "0.1"
+              cpu: "0.5"
               memory: 64Mi
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: my-service
+  name: mother-appy-service
 spec:
   selector:
     app: mother-app
@@ -43,10 +46,13 @@ spec:
   containers:
     - name: main-container
       image: 286292902993.dkr.ecr.us-east-1.amazonaws.com/infra-test
+      env:
+        - name: ARGS
+          value: "scheduler"
       resources:
         limits:
-          cpu: "0.2"
+          cpu: "1"
           memory: 128Mi
         requests:
-          cpu: "0.1"
+          cpu: "0.5"
           memory: 64Mi

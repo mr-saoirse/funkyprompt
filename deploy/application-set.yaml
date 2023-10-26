@@ -1,3 +1,4 @@
+#kc apply -f ./deploy/application-set.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -5,7 +6,7 @@ metadata:
 spec:
   generators:
     - git:
-        repoURL: github.com:mr-saoirse/funkyprompt.git
+        repoURL: https://github.com/mr-saoirse/funkyprompt.git
         revision: HEAD
         directories:
           #look for a kustomize
@@ -25,11 +26,11 @@ spec:
           prune: true
       #stuff
       source:
-        repoURL: github.com:mr-saoirse/funkyprompt.git
+        repoURL: https://github.com/mr-saoirse/funkyprompt.git
         targetRevision: HEAD
         path: "{{path}}"
         kustomize:
           commonAnnotations:
             app/param-host: "bla"
           images:
-            - "286292902993.dkr.ecr.us-east-1.amazonaws.com/infra-test:funky-0.3.311"
+            - "286292902993.dkr.ecr.us-east-1.amazonaws.com/infra-test:funky-0"
