@@ -1,4 +1,5 @@
 #kc apply -f ./deploy/application-set.yaml
+# wait a little and then check
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:

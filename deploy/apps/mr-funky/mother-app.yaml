@@ -29,7 +29,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: mother-appy-service
+  name: mother-app-service
 spec:
   selector:
     app: mother-app
@@ -41,7 +41,7 @@ spec:
 apiVersion: v1
 kind: Pod
 metadata:
-  name: scheduler
+  name: funky-scheduler
 spec:
   containers:
     - name: main-container
