@@ -20,6 +20,14 @@ from functools import partial
 def get_embedding_function_for_provide(text, embedding_provider="open-ai"):
     """
     Get some embeddings we can extend this with different types are anyone can pass their own in future
+
+    view embeddings with
+
+    embeddings_2d = UMAP().fit_transform(list_embedding_vectors)
+    2d scatter plot or otherwise
+    see: https://umap-learn.readthedocs.io/en/latest/plotting.html
+    https://umap-learn.readthedocs.io/en/latest/document_embedding.html
+
     """
     import openai
 

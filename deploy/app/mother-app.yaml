@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: my-container
-          image: funky
+          image: 286292902993.dkr.ecr.us-east-1.amazonaws.com/infra-test
           resources:
             limits:
               cpu: "0.2"
@@ -42,7 +42,7 @@ metadata:
 spec:
   containers:
     - name: main-container
-      image: funky
+      image: 286292902993.dkr.ecr.us-east-1.amazonaws.com/infra-test
       resources:
         limits:
           cpu: "0.2"

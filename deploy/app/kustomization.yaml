@@ -1,3 +1,6 @@
+#to test before hading over to argo
+#kustomize build app
+#kubectl apply -k app
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 configurations:
@@ -7,4 +10,4 @@ resources:
   - mother-app.yaml
 images:
   - name: 286292902993.dkr.ecr.us-east-1.amazonaws.com/infra-test
-    newTag: "0.3.311"
+    newTag: "funky-0.3.311"
