@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mother-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: mother-app
+  template:
+    metadata:
+      labels:
+        app: mother-app
+    spec:
+      containers:
+        - name: my-container
+          image: funky
+          resources:
+            limits:
+              cpu: "0.2"
+              memory: 128Mi
+            requests:
+              cpu: "0.1"
+              memory: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service
+spec:
+  selector:
+    app: mother-app
+  ports:
+    - protocol: TCP
+      port: 8008
+      targetPort: 8008
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: scheduler
+spec:
+  containers:
+    - name: main-container
+      image: funky
+      resources:
+        limits:
+          cpu: "0.2"
+          memory: 128Mi
+        requests:
+          cpu: "0.1"
+          memory: 64Mi

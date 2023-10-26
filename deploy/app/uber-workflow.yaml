@@ -1,0 +1,142 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: runner
+spec:
+  ttlStrategy:
+    secondsAfterCompletion: 160
+    secondsAfterSuccess: 160
+    secondsAfterFailure: 720
+  entrypoint: dag
+  onExit: exit-handler
+  arguments:
+    parameters:
+      - name: event
+        value: "{}"
+      - name: op
+        value: handler
+      - name: generator
+        value: False
+      - name: reducer
+        value: False
+      - name: name
+        value: ""
+      - name: context
+        value: "{}"
+      - name: image
+        value: ""
+  templates:
+    - name: dag
+      inputs:
+        parameters:
+          - name: event
+      steps:
+        - - name: simple
+            template: the-node
+            when: "{{workflow.parameters.generator}} == false"
+            arguments:
+              parameters:
+                - name: event
+                  value: "{{workflow.parameters.event}}"
+
+        - - name: generate
+            template: the-node
+            when: "{{workflow.parameters.generator}} != false"
+            arguments:
+              parameters:
+                - name: event
+                  value: "{{workflow.parameters.event}}"
+                - name: op
+                  value: "generator"
+
+        - - name: map
+            template: the-node
+            when: "{{workflow.parameters.generator}} != false"
+            withParam: "{{steps.generate.outputs.parameters.out}}"
+            arguments:
+              parameters:
+                - name: event
+                  value: "{{item}}"
+                # one way to turn this on would be to set deployment_attributes.memory='databind' on the method
+                # its important then to commit to supplying this on the payload dict or argo will fail to update the pod spec
+                # if we do not set databind option then this item mapping will be disabled and set either
+                # directly from the methods deployment_attributes.memory e.g. ='2Gi' or
+                # leaving it blank to take the workflow default
+                # - name: memory
+                #   value: "{{item.memory}}"
+
+        - - name: reduce
+            #runs optionally
+            template: the-node
+            when: "{{workflow.parameters.reducer}} != false"
+            arguments:
+              parameters:
+                - name: event
+                  value: "{{workflow.parameters.event}}"
+                - name: op
+                  value: "reducer"
+    #exit handler
+    - name: exit-handler
+      steps:
+        - - name: failure
+            template: the-node
+            when: "{{workflow.status}} != Succeeded"
+            arguments:
+              parameters:
+                - name: event
+                  value: "{{workflow.parameters.event}}"
+                - name: op
+                  value: "on_success"
+        - - name: success
+            template: the-node
+            when: "{{workflow.status}} == Succeeded"
+            arguments:
+              parameters:
+                - name: event
+                  value: "{{workflow.parameters.event}}"
+                - name: op
+                  value: "on_success"
+
+    # container templates
+    - name: the-node
+      outputs:
+        parameters:
+          - name: out
+            default: "[{},{}]"
+            valueFrom:
+              path: /tmp/out
+      inputs:
+        parameters:
+          - name: event
+          - name: op
+            default: handler
+          - name: memory
+            default: "512Mi"
+      podSpecPatch: |
+        containers:
+        - name: main
+          resources:
+            limits:
+              memory: "{{inputs.parameters.memory}}"
+      container:
+        command: [
+            python,
+            "/app/cli.py",
+            "run",
+            "-n",
+            "{{workflow.parameters.name}}",
+            "-v",
+            "{{inputs.parameters.event}}",
+            "-m",
+            "{{inputs.parameters.op}}",
+            #for testing pass this to get some dummy payloads
+            #"-t",
+          ]
+
+        #we can pass this in to override later
+        #image: "{{workflow.parameters.image}}"
+        image: 286292902993.dkr.ecr.us-east-1.amazonaws.com/infra-test
+        imagePullPolicy: Always
+        # envFrom:
+        #   - configMapRef:
+        #       name: conf

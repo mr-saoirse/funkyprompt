@@ -6,21 +6,35 @@ authors = ["mr-saoirse <amartey@gmail.com>"]
 license = "MIT License"
 readme = "README.md"
 
+[tool.poetry-dynamic-versioning]
+enable = true
+vcs = "git"
+pattern  = "^(?P<base>\\d+\\.\\d+\\.\\d+)(-?((?P<stage>[a-zA-Z]+)\\.?(?P<revision>\\d+)?))?"
+style = "semver"
+
+[tool.poetry-dynamic-versioning.files."funkyprompt/_version.py"]
+persistent-substitution = true
+
 [tool.poetry.dependencies]
 python = "^3.10.0"
 openai = "^0.28.1"
 loguru = "^0.7.2"
 typer = "^0.9.0"
 lancedb = "^0.3.2"
-lance = "^1.2.1"
 duckdb = "^0.9.1"
-polars = "^0.19.11"
+polars = "^0.18.0"
 pydantic = "^2.4.2"
-
+beautifulsoup4 = "^4.12.2"
+s3fs = "^2023.10.0"
+fastapi = "^0.104.0"
+pyarrow = "^13.0.0"
+tqdm = "^4.66.1"
+uvicorn = "^0.23.2"
+apscheduler = "^3.10.4"
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["poetry-core", "poetry-dynamic-versioning>=1.0.0,<2.0.0"]
+build-backend = "poetry_dynamic_versioning.backend"
 
 
 [tool.poetry.scripts]

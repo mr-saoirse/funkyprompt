@@ -1,0 +1,70 @@
+#see https://github.com/pypa/gh-action-pypi-publish for pypi notes
+#tried pre with this https://github.com/mtkennerly/poetry-dynamic-versioning
+#https://nadeauinnovations.com/post/2020/08/one-version-to-rule-them-all-keeping-your-python-package-version-number-in-sync-with-git-and-poetry/
+name: BuildAppPinnings
+#build and release if semantic version changes on a tagged release
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "funkyprompt/**"
+jobs:
+  build-it:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+    runs-on: ubuntu-latest
+    concurrency: release
+    environment:
+      name: pypi
+      url: https://pypi.org/manage/project/funkyprompt/
+    permissions:
+      id-token: write
+      contents: write
+    steps:
+      - uses: actions/checkout@v3
+      - name: Git branch name
+        id: git-branch-name
+        uses: EthanSK/git-branch-name-action@v1
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Install pack cli
+        run: |
+          sudo add-apt-repository ppa:cncf-buildpacks/pack-cli -yy
+          sudo apt-get update -yy
+          sudo apt-get install pack-cli -yy
+
+      - name: Build and push container image to registry
+        run: |
+          pack build --builder paketobuildpacks/builder:base --publish 286292902993.dkr.ecr.us-east-1.amazonaws.com/infra-test:funky-0.1.311    --cache-image   286292902993.dkr.ecr.us-east-1.amazonaws.com/infra-test:cache-funky-funky-0.1.311
+
+      # - name: Python Semantic Release
+      #   uses: python-semantic-release/python-semantic-release@master
+      #   with:
+      #     github_token: ${{ secrets.GITHUB_TOKEN }}
+
+  #conditional job
+  pypi-publish:
+    name: Upload release to PyPI
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/<your-pypi-project-name>
+    permissions:
+      id-token: write # IMPORTANT: this permission is mandatory for trusted publishing
+    steps:
+      # retrieve your distributions here
+
+      - name: Publish package distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+#
+#
+#
+#aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 286292902993.dkr.ecr.us-east-1.amazonaws.com
