@@ -1,6 +1,8 @@
 #to test before hading over to argo
 #kustomize build app
 #kubectl apply -k app
+#ways to set with argo
+#1. argocd app set staging --kustomize-image
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 configurations:

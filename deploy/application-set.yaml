@@ -1,0 +1,35 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: apps
+spec:
+  generators:
+    - git:
+        repoURL: github.com:mr-saoirse/funkyprompt.git
+        revision: HEAD
+        directories:
+          #look for a kustomize
+          - path: deploy/apps/*
+  template:
+    #Application starts here name and path are params
+    metadata:
+      name: "funky-{{path.basename}}"
+      namespace: argo
+    spec:
+      project: default
+      destination:
+        namespace: argo
+        server: https://kubernetes.default.svc
+      syncPolicy:
+        automated:
+          prune: true
+      #stuff
+      source:
+        repoURL: github.com:mr-saoirse/funkyprompt.git
+        targetRevision: HEAD
+        path: "{{path}}"
+        kustomize:
+          commonAnnotations:
+            app/param-host: "bla"
+          images:
+            - "286292902993.dkr.ecr.us-east-1.amazonaws.com/infra-test:funky-0.3.311"
