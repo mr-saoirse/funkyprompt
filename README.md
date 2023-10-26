@@ -87,5 +87,4 @@ We may generated `_entity_crud.py` which the user can update or any other ops ca
 we prefix auto generated files (except for initial types) with the under score to observe that its not safe to update and re-run generators that could overwrite
 Docstrings format - use the helper to generate for a given function - it also validates that typing info is present
 Funkyprompt entity loader is fixed to the examples module but we should be able to override that - test with monologue  
-
 bump
