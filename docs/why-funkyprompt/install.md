@@ -12,7 +12,7 @@ You can do one of the following to start using funkyprompt.
 pip install funkyprompt
 ```
 
-2 Or you can clone the latest code from the [repo](https://github.com/mr-saoirse/funkyprompt) and use Poetry to build and install.&#x20;
+2 Or you can clone the latest code from the [repo](https://github.com/mr-saoirse/funkyprompt) and use [Poetry](https://python-poetry.org/) to build and install.&#x20;
 
 ```bash
 #from within the repo folder run commands like these
@@ -53,7 +53,7 @@ alias fp='poetry run fprompt' and running from a poetry virtual env
 fp ask -q "What is the capital of ireland?"
 ```
 
-This of course is not the reason why you would want to use `funkyprompt` - a slighly more interesting question is one that requires inspecting the code base for functions to answer the question. We have some example functions to make it easier to get started but it will be more fun if you bring your own. But for now
+This of course is not the reason why you would want to use `funkyprompt` - a slightly more interesting question is one that requires inspecting the code base for functions to answer the question. We have some example functions to make it easier to get started but it will be more fun if you bring your own. But for now
 
 ```bash
 fp interpret -q "What would a person who likes cats more than dogs do?"
