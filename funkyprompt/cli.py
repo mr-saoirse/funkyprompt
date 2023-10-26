@@ -69,7 +69,7 @@ def ingest_page(
     store_name: str = typer.Option(None, "--name", "-n"),
 ):
     """
-    ingest a page at url into a named store
+    ingest a page at url into a named store...
 
     """
     pass
