@@ -29,7 +29,7 @@ def say_hi():
 def upsert_unstructured_data(*, text: AbstractVectorStoreEntry) -> dict:
     """
 
-    this object will be inserted into the store
+    this object will be inserted into the store..
 
     """
 
