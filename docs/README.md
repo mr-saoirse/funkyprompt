@@ -25,14 +25,7 @@ The library provides tools for understanding how the LLM inspects our functions 
 6. Clear guide lines for writing agent programs without having to learn any tools. (tutorial)
 7. backed by extensive research and tests on use cases (tutorial, notebooks, articles)
 
-## Install
+## Getting Started
 
-## CLI
+<table data-view="cards"><thead><tr><th></th><th></th><th></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td></td><td><a data-mention href="why-funkyprompt/install.md">install.md</a></td><td></td><td><a href="why-funkyprompt/install.md">install.md</a></td></tr><tr><td></td><td><a data-mention href="why-funkyprompt/deploy.md">deploy.md</a></td><td></td><td></td></tr><tr><td></td><td><a data-mention href="why-funkyprompt/rag-systems.md">rag-systems.md</a></td><td></td><td></td></tr></tbody></table>
 
-## Serve
-
-## Deploy to Coud
-
-## Where next?
-
-<table data-view="cards"><thead><tr><th></th><th></th><th></th></tr></thead><tbody><tr><td></td><td><a data-mention href="broken-reference">Broken link</a></td><td></td></tr><tr><td></td><td><a data-mention href="broken-reference">Broken link</a></td><td></td></tr><tr><td></td><td><a data-mention href="broken-reference">Broken link</a></td><td></td></tr></tbody></table>
