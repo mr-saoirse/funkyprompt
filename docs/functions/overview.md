@@ -22,7 +22,7 @@ def get_persons_favourite_thing_of_type(person: Person, thing_type: str) -> str:
     return "This persons favourite color is gold baby"
 ```
 
-The Person is a pydantic object
+The `Person` is a pydantic object
 
 ```python
 class Person(BaseModel):
@@ -41,7 +41,7 @@ from funkyprompt.ops.utils.inspector import describe_function
 d: FunctionDescription= describe_function(get_persons_favourite_thing_of_type)
 ```
 
-The function `d.funtion_dict()` will provide a description in the format as used by [OpenAI functions](https://openai.com/blog/function-calling-and-other-api-updates). Note we build it in a special way e.g. adding Pydantic object schema into the descriptions at the top.
+Calling `d.function_dict()` will provide a description in the format as used by [OpenAI functions](https://openai.com/blog/function-calling-and-other-api-updates). Note we build it in a special way e.g. adding Pydantic object schema into the descriptions.
 
 {% hint style="info" %}
 It seems nicer to add the object description into the parameter description directly but the LLM did not seem to do as well at the time of testing.
