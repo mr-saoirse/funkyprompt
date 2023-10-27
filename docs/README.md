@@ -4,19 +4,19 @@ description: The best prompts are no prompts
 
 # Why funkyprompt
 
-The LLM and LLM tool space is noisy so we hesitantly introduce a new and simple tool into this space. The goal is to focus on powerful predictability. This is done by respecting the interface between (a) the LLM such as OpenAI chat completions with functions interface and (b) everything else i.e. our code.
+The LLM and LLM tool space is noisy so we hesitantly introduce a new and simple tool into this space. The goal is to focus on _powerful predictability_. This is done by respecting the interface between (a) the LLM such as OpenAI chat completions with functions interface and (b) everything else i.e. our code.
 
-`funkyprompt` works by exploring how we can write code as we normally would, with typing and docstrings, avoid writing prompts at all and yet still creating powerful agent systems.
+`funkyprompt` works by exploring how we can write code as we normally would, with typing and docstrings, avoid writing prompts at all and yet still create powerful agent systems.
 
-At the core we run a single interpreter that interfaces our code to the LLM, which basically loops and tries to solve problems, while calling out to supplied functions. But its a bit more exciting than that. This is a pattern that subsumes zero shot, conversational, planning and multi agent systems in a purely functional way.&#x20;
+At the core we run a _single interpreter_ that interfaces our code to the LLM, which basically loops and tries to solve problems, while calling out to supplied functions. But its a bit more exciting than that. This is a pattern that subsumes zero shot, conversational, planning and multi agent systems in a purely functional way.&#x20;
 
 The library provides tools for understanding how the LLM inspects our functions and plans. It explores where the LLM does well and where it trips up.&#x20;
 
-
+***
 
 #### Some nice things about funkyprompt
 
-1. Fast setup with data stores, data and LLM interface ready to go (tutorial)
+1. Fast setup, with data stores, data and LLM interface ready to go (tutorial)
 2. Easy tools to ingest real or test data into the stores to experiment with (tutorial)
    1. Use local or S3 storage with no configuration beyond env variables
 3. Strongly typed and functional - everything is either pydantic or a function (tutorial)

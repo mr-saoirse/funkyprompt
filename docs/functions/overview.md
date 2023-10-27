@@ -8,7 +8,7 @@ def get_persons_favourite_thing_of_type(person: Person, thing_type: str) -> str:
     This function returns the favourite type of thing for a supplied Person
 
     **Params**
-        person: This a complex type that describes the person
+        person: This is a complex type that describes the person
         thing_type: The class of thing we are interested in e.g. 'color', 'food' or 'animal'
 
     **Returns**
@@ -50,7 +50,7 @@ It seems nicer to add the object description into the parameter description dire
 ````json
 {
     "name": "get_persons_favourite_thing_of_type",
-    "description": "This function returns the favourite thing of type for a supplied Person\\nThe parameter [person] is a Pydantic object type described below: \\njson```<<PYDNATIC PERSON DEF>>```\\n",
+    "description": "This function returns the favourite thing of type for a supplied Person\\nThe parameter [person] is a Pydantic object type described below: \\njson```<<PYDANTIC PERSON DEF>>```\\n",
     "parameters": {
         "type": "object",
         "properties": {
@@ -105,4 +105,4 @@ John@gmail.com's favourite color is gold and his most likely action is eating va
 
 ***
 
-Above we crated trivially silly functions to use as basic tests. We will want to develop a good intuition before we start working with real data and bigger data. Up next we will provide some tooling to play around with function execution plans and how we visually represent them. We are getting to the heart of what `funkyprompt` is all about!
+Above we created trivially silly functions to use as basic tests. We will want to develop a good intuition before we start working with real data and bigger data. Up next we will provide some tooling to play around with function execution plans and how we visually represent them. We are getting to the heart of what `funkyprompt` is all about!

@@ -4,10 +4,10 @@ description: How to deploy to Kubernetes
 
 # Deploy
 
-The reason we will deploy `funkyprompt` is  we want to have a served version of the agent and we want to create ingestion jobs to continue to ingest data on the server.
+The reason we will deploy `funkyprompt` is that we want to have a served version of the agent i.e. an API and we want to create _ingestion_ jobs to continue to ingest data via processes running on cloud.
 
 {% hint style="info" %}
-There are many ways to deploy and use funkyprompt. One of the easiest might be to add the library to your existing services that you deploy so you do not need any extra deployment overhead. However, You can deploy a standalone test instance in the following way.
+There are many ways to deploy and use `funkyprompt`. One of the easiest might be to add the library to your existing services, which you deploy, so you do not need any extra deployment overhead. However, you can deploy a standalone test instance as described below.
 {% endhint %}
 
 ### Option 1 (Recommended): Deploy as an Argo-CD Application set
