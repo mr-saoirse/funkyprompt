@@ -3,13 +3,14 @@ from fastapi import FastAPI, APIRouter
 from funkyprompt.ops.entities import AbstractVectorStoreEntry
 from funkyprompt.io.stores import insert
 from funkyprompt import logger
-
+from funkyprompt import __version__
 
 PROCESS_NAME = "funkyprompt"
 app = FastAPI(
     title="FunkyPrompt API",
     openapi_url=f"/{PROCESS_NAME}/openapi.json",
     docs_url=f"/{PROCESS_NAME}/docs",
+    version=__version__,
 )
 api_router = APIRouter()
 

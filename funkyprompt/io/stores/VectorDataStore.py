@@ -17,7 +17,7 @@ from funkyprompt.io.clients.lance import LanceDataTable
 from functools import partial
 
 
-def get_embedding_function_for_provide(text, embedding_provider="open-ai"):
+def get_embedding_function_for_provider(text: str, embedding_provider: str = "open-ai"):
     """
     Get some embeddings we can extend this with different types are anyone can pass their own in future
 
@@ -31,7 +31,7 @@ def get_embedding_function_for_provide(text, embedding_provider="open-ai"):
     """
     import openai
 
-    response = openai.Embedding.create(model="text-embedding-ada-002", input=[text])
+    response = openai.Embedding.create(model="text-embedding-ada-002", input=text)
     embedding = response["data"][0]["embedding"]
 
     return embedding
@@ -76,10 +76,11 @@ class VectorDataStore(AbstractStore):
             # we support various embeddings and we need to match what the pydantic types for lengths and what we store
             # this defaults to open ai only because we need no extra deps and not because its the best
             self._embeddings = partial(
-                get_embedding_function_for_provide, self._embeddings_provider
+                get_embedding_function_for_provider,
+                embedding_provider=self._embeddings_provider,
             )
 
-    def run_search(self, query, limit=3, probes=20, refine_factor=10):
+    def run_search(self, query, limit=5, probes=20, refine_factor=10):
         """
         perform the vector search for the query directly on the store (lance is the build in one)
         """

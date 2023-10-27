@@ -26,19 +26,39 @@ app.add_typer(loader_app, name="ingest")
 k8s_app = typer.Typer()
 app.add_typer(k8s_app, name="k8s", help="Use the spider to ingest data into the system")
 
+agent_app = typer.Typer()
+app.add_typer(
+    agent_app, name="agent", help="Use the agent to ask questions in different ways"
+)
+
 
 # diagram/design and types app
 
 
-@app.command("query")
+@agent_app.command("interpret")
 def query(
-    prompt: typing.Optional[str] = typer.Option(None, "--query", "-q"),
+    question: typing.Optional[str] = typer.Option(None, "--query", "-q"),
 ):
     """
-    run a query against the agent
+    run a query against the agent using the interpreter loop
     """
-    import lance
-    import lancedb
+
+    # same as agent query but
+    response = agent(question)
+    logger.info(response)
+
+
+@agent_app.command("ask")
+def query(
+    question: typing.Optional[str] = typer.Option(None, "--query", "-q"),
+):
+    """
+    run a query against the agent using the direct ask - this is simply more low level that the interpret
+    """
+
+    # same as agent query but
+    response = agent.ask(question)
+    logger.info(response)
 
 
 """

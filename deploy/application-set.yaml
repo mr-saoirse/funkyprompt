@@ -1,5 +1,6 @@
 #kc apply -f ./deploy/application-set.yaml
 # wait a little and then check
+# kubectl port-forward svc/mother-appy-service 8008:8008
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:

@@ -12,6 +12,7 @@ import importlib
 import pkgutil
 import sys
 from funkyprompt import logger
+from enum import Enum
 
 # unless told otherwise
 DEFAULT_MODULE_ROOT = "funkyprompt.ops.examples"
@@ -35,8 +36,8 @@ class FunctionDescription(BaseModel):
     name: str
     description: str
     parameters: dict
-    raises: str
-    returns: str
+    raises: typing.Optional[str] = None
+    returns: typing.Optional[str] = None
     function: typing.Any = Field(exclude=True)
 
     def pop_object_types(cls, d):
@@ -57,6 +58,7 @@ class FunctionDescription(BaseModel):
                     "type": "object",
                     "description": "This is a complex Pydantic type who's schema is described in the function description",
                 }
+
         for param_name, v in objects.items():
             desc += f"The parameter [{param_name}] is a Pydantic object type described below: \n"
             desc += f"json```{json.dumps(v)}```\n"
@@ -92,7 +94,7 @@ def is_pydantic_type(t):
 
 
 def describe_function(
-    function: typing.Callable,
+    function: typing.Callable, add_sys_fields=False
 ) -> FunctionDescription:
     """
     Used to get the description of the method for use with the LLM
@@ -104,7 +106,10 @@ def describe_function(
     def python_type_to_json_type(python_type):
         """
         map typing info
+        todo: implement enums
+        diagram_request
         """
+
         if python_type == int:
             return "integer"
         elif python_type == float:
@@ -114,14 +119,20 @@ def describe_function(
         elif python_type == bool:
             return "boolean"
         # for pydantic objects return the schema
-        elif is_pydantic_type(python_type):
+        if is_pydantic_type(python_type):
             return python_type.schema()
+
+        if issubclass(python_type, Enum):
+            # assume uniform types
+            delegate_type = type(list(python_type)[0].value)
+            return python_type_to_json_type(delegate_type)
         else:
             return "object"
 
     def parse_args_into_dict(args_text):
         """
         parse out args with type mapping for the agent
+        TODO: support more complex typing e.g. options and unions etc
         """
         args_dict = {}
 
@@ -130,12 +141,28 @@ def describe_function(
             if len(parts) == 2:
                 param_name = parts[0].strip()
                 param_description = parts[1].strip()
+                T = type_hints[param_name]
+                # TODO: handle optional types e.g Optional[str]
                 args_dict[param_name] = {
                     # assuming the name of the type matches between args and doc string
-                    "type": python_type_to_json_type(type_hints[param_name]),
+                    "type": python_type_to_json_type(T),
                     "description": param_description,
                 }
-
+                # for enums adds the choices
+                if issubclass(T, Enum):
+                    args_dict[param_name]["enum"] = [member.value for member in T]
+        """
+        we can optionally add system fields 
+        """
+        if add_sys_fields:
+            args_dict["__confidence__"] = {
+                "type": "string",
+                "description": "Your confidence between 0 and 100 that calling this function is the right thing to do in this context",
+            }
+            args_dict["__parameter_choices__"] = {
+                "type": "string",
+                "description": "Explain why you are passing these parameters",
+            }
         return args_dict
 
     docstring = function.__doc__
@@ -223,6 +250,37 @@ def inspect_modules(
             path_list.append(import_path)
             for mod in _get_module_callables(import_path):
                 yield mod
+
+    for spec in spec_list:
+        del sys.modules[spec.name]
+
+
+def inspect_modules_for_class_types(module=None, type_filter=None):
+    """
+
+    iterate over module for the type requested
+
+    Example:
+        import diagrams:
+        from diagrams import Node
+        list(inspect_modules_for_class_types(diagrams, Node))
+
+    """
+    path_list = []
+    spec_list = []
+
+    for importer, modname, ispkg in pkgutil.walk_packages(module.__path__):
+        import_path = f"{module.__name__}.{modname}"
+        if ispkg:
+            spec = pkgutil._get_spec(importer, modname)
+            importlib._bootstrap._load(spec)
+            spec_list.append(spec)
+        else:
+            path_list.append(import_path)
+
+            for name, obj in inspect.getmembers(importlib.import_module(import_path)):
+                if inspect.isclass(obj) and issubclass(obj, type_filter):
+                    yield import_path, name, obj
 
     for spec in spec_list:
         del sys.modules[spec.name]

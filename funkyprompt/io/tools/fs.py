@@ -8,6 +8,7 @@ import polars as pl
 import s3fs
 import pyarrow.dataset as ds
 from functools import partial
+from pathlib import Path
 
 
 class FileData(BaseModel):
@@ -199,3 +200,22 @@ def load_type(entity_name, namespace="default"):
     module_home/namespace/entity
     """
     pass
+
+
+def _save_sample_file_to_home(code, file, folder=None):
+    """
+    When testing file generation its useful to save output files to the home directory for caching or inspecting
+
+    **Args**
+        code: the actual code e.g. python code
+        file: the name of the file e.g. file.python
+        folder: a sub folder to organize data into
+    """
+
+    out_dir = f"{Path.home()}/.funkyprompt"
+    if folder:
+        out_dir = f"{out_dir}/{folder}"
+    out_file = f"{out_dir}/{file}"
+    Path(out_dir).mkdir(exist_ok=True, parents=True)
+    with open(out_file, "w") as f:
+        f.write(code)

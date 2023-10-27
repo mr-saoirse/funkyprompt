@@ -1,3 +1,7 @@
+"""
+notes we have use by_alias false in pydantic schema resolution which may not be as expected
+"""
+
 from typing import List, Optional
 from pydantic import Field, BaseModel, create_model, model_validator
 
@@ -61,7 +65,7 @@ class AbstractEntity(BaseModel):
     @property
     def entity_name(cls):
         # TODO: we will want to fully qualify these names
-        s = cls.schema()
+        s = cls.model_json_schema(by_alias=False)
         return s["title"]
 
     @classmethod
@@ -72,7 +76,7 @@ class AbstractEntity(BaseModel):
     @classmethod
     @property
     def key_field(cls):
-        s = cls.schema()
+        s = cls.model_json_schema(by_alias=False)
         key_props = [k for k, v in s["properties"].items() if v.get("is_key")]
         # TODO: assume one key for now
         if len(key_props):
@@ -81,7 +85,7 @@ class AbstractEntity(BaseModel):
     @classmethod
     @property
     def fields(cls):
-        s = cls.schema()
+        s = cls.model_json_schema()
         key_props = [k for k, v in s["properties"].items()]
         return key_props
 
@@ -100,7 +104,7 @@ class AbstractEntity(BaseModel):
                 return cls.Config.embeddings_provider
 
     def large_text_dict(cls):
-        return cls.dict()
+        return cls.model_dump()
 
     def __str__(cls):
         """
@@ -108,7 +112,7 @@ class AbstractEntity(BaseModel):
         the idea of using markdown and fenced objects is explored
         """
 
-        d = cls.dict()
+        d = cls.model_dump()
         d["__type__"] = cls.entity_name
         d["__key__"] = cls.key_field
         d["__namespace__"] = cls.namespace
@@ -199,10 +203,11 @@ class AbstractEntity(BaseModel):
 
         fields = []
 
-        props = cls.schema()["properties"]
+        props = cls.model_json_schema(by_alias=False)["properties"]
         for field_name, field_info in iter_field_annotations(cls):
+            print(field_name, field_info)
             if hasattr(field_info, "__annotations__"):
-                # TODO need gto test this more
+                # TODO need to test this more
                 field_type = AbstractEntity.pyarrow_schema(field_info)
             else:
                 if getattr(field_info, "__origin__", None) is not None:
@@ -232,14 +237,101 @@ class AbstractVectorStoreEntry(AbstractEntity):
     text: str = Field(long_text=True)
     doc_id: Optional[str]
     vector: Optional[List[float]] = Field(
-        fixed_size_length=OPEN_AI_EMBEDDING_VECTOR_LENGTH
-    )
+        fixed_size_length=OPEN_AI_EMBEDDING_VECTOR_LENGTH,
+        default_factory=list,
+    )  # lambda: [0.0 for i in range(OPEN_AI_EMBEDDING_VECTOR_LENGTH)]
     id: Optional[str]
 
-    @model_validator(mode="after")
+    @model_validator(mode="before")
     def default_ids(cls, values):
         if not values.get("id"):
             values["id"] = values["name"]
         if not values.get("doc_id"):
             values["doc_id"] = values["name"]
         return values
+
+
+class SchemaOrgVectorEntity(AbstractVectorStoreEntry):
+    """
+    A helper for mapping schema data usually scrapped in Json+LD
+    we want tp put this in various pydantic types to use the Rag Store
+    """
+
+    class Config:
+        # these are excluded from the output we send to data stores for now
+        EXCLUDE_ATTRIBUTES = ["comment", "sameAs"]
+        # these are mapped from objects that are complex with @id to just have the string value (s)
+        PULL_IDs = ["image", "video", "publisher", "aggregate_rating"]
+        FLATTEN_COMPLEX_NAMED_TEXT_TYPES = ["HowToStep"]
+
+    @model_validator(mode="before")
+    def pull_ids(cls, values):
+        for key in values.keys():
+            if key in SchemaOrgVectorEntity.Config.PULL_IDs:
+                if not isinstance(values, dict):
+                    raise NotImplementedError("multiples todo for mapping @id stuff")
+                values[key] = values.get("name", values.get("@id"))
+        return values
+
+    @model_validator(mode="before")
+    def _coerce_str(cls, values):
+        # this is just for testing
+        for key in values.keys():
+            values[key] = str(values[key])
+        return values
+
+    @staticmethod
+    def should_exclude(k, override_exclude=None):
+        return k in (
+            override_exclude or SchemaOrgVectorEntity.Config.EXCLUDE_ATTRIBUTES
+        )
+
+    @classmethod
+    def create_model_from_schema(
+        cls,
+        name,
+        schema,
+        namespace=None,
+        exclude_fields_snake_case=None,
+        text_fields=None,
+    ):
+        # is this a new dep - maybe we wont use it
+        from stringcase import snakecase
+
+        """
+        
+        schema org attributes but snake case and cleaned
+        for now we will not type until we have a use case for columnar data      
+        schema can be a type of an instance
+        if its a type from schema org it will be better for generating but for simple use cases it does not matter  
+        TODO: we will combine text fields into one that we use for the VStore - at the moment its assumed that there is at least a text field which is typical enough for schema.org
+        """
+
+        field_norm = lambda s: snakecase(s.lstrip("@"))
+
+        fields = {
+            field_norm(field_name): (
+                # ToDo manage types properly
+                str,
+                Field(alias=field_name),
+            )
+            for field_name, type_info in schema.items()
+        }
+
+        # field names that we want to generate
+        # if this were written out we could use underscores but this is a hidden dynamic type so we dont generate these excluded fields at all
+        fields = {
+            k: v
+            for k, v in fields.items()
+            if not SchemaOrgVectorEntity.should_exclude(k, exclude_fields_snake_case)
+        }
+
+        if "text" not in fields:
+            fields["text"] = (str, "")
+
+        if text_fields:
+            pass  # add the validator
+            # we need to add a validator to merge these fields into a text field
+
+        #
+        return create_model(name, **fields, __module__=namespace, __base__=cls)

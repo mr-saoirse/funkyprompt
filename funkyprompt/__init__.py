@@ -3,12 +3,13 @@ import os
 from pathlib import Path
 import uuid
 import hashlib
+from ._version import __version__
 
 USER_HOME = Path.home()
 DEFAULT_HOME = f"{USER_HOME}/.funkyprompt"
-STORE_ROOT = os.environ.get("FP_STORE_HOME", DEFAULT_HOME)
-VECTOR_STORE_ROOT_URI = ""
-COLUMNAR_STORE_ROOT_URI = ""
+STORE_ROOT = os.environ.get("FP_STORE_HOME", DEFAULT_HOME).rstrip("/")
+VECTOR_STORE_ROOT_URI = f"{STORE_ROOT}/vector-store"
+COLUMNAR_STORE_ROOT_URI = f"{STORE_ROOT}/columnar-store"
 
 
 if not Path(DEFAULT_HOME).exists():
@@ -24,5 +25,6 @@ def str_hash(s=None, m=5, prefix="fpr"):
 from . import io, ops
 from .agent.AgentBase import AgentBase
 from funkyprompt.ops import examples
+from funkyprompt.ops.utils.inspector import describe_function
 
 agent = AgentBase(modules=examples)
