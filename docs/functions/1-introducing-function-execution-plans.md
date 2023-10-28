@@ -137,7 +137,7 @@ We can work with this!
 In this case we allow for low value functions to be called if they can be run in parallel with higher value functions. This is an _opportunistic_ approach given that we can run our code without LLM round trips. OF course, we still have to be careful with context size in the response but we could filter that in code e.g. taking the confidence into account.&#x20;
 
 {% hint style="info" %}
-A desirable property is low DAG depth. Here we have 5 function in 2 layers. thats nice.
+A desirable property is low DAG depth. Here we have 5 functions in 2 layers. Thats nice.
 {% endhint %}
 
 Before we move into more complex plans, here is a record of the PLAN that was used for this agent. The idea of `funkyprompt` is to provide a starting prompt but then use the function comments to extend the context. Generally the initial prompt should be _minimal and stable_ but in this case we are experimenting with the idea of planning and seeing what works and what does not.&#x20;
@@ -165,4 +165,4 @@ class PlanningAgent(AgentBase):
      USER_HINT = "Please return to me the graph representation (in the correct format) about the plan with respect to the question asked. "
 ```
 
-Ok, lets check out the mechanics of planning and executing these simple plans.
+Ok, lets check out the mechanics of executing these simple plans.
