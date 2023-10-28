@@ -13,26 +13,47 @@ various entry points are provide for local testing and cloud contexts
 import typer
 import typing
 from funkyprompt import logger
-from funkyprompt.io.tools import downloader, fs
+from funkyprompt.io.tools import fs
 from funkyprompt import agent
-from funkyprompt import ops
-from funkyprompt.agent import tasks
+from funkyprompt.agent.AgentBase import PlanningAgent
 
 app = typer.Typer()
 
-loader_app = typer.Typer()
-app.add_typer(loader_app, name="ingest")
+# loader_app = typer.Typer()
+# app.add_typer(loader_app, name="ingest")
 
-k8s_app = typer.Typer()
-app.add_typer(k8s_app, name="k8s", help="Use the spider to ingest data into the system")
+data_app = typer.Typer()
+app.add_typer(
+    data_app, name="data", help="interact with rag stores [ingest|query|entity]"
+)
+
+# k8s_app = typer.Typer()
+# app.add_typer(k8s_app, name="k8s", help="Use the spider to ingest data into the system")
 
 agent_app = typer.Typer()
 app.add_typer(
-    agent_app, name="agent", help="Use the agent to ask questions in different ways"
+    agent_app,
+    name="agent",
+    help="Use the agent to ask questions in different ways [ask|interpret]",
 )
 
 
+runner_app = typer.Typer()
+app.add_typer(
+    runner_app, name="run", help="run funkyprompt processes [api|scheduler|function]"
+)
+
 # diagram/design and types app
+
+
+@data_app.command("query")
+def query_store(
+    query: typing.Optional[str] = typer.Option(None, "--query", "-q"),
+):
+    """
+    run a query against the store
+    """
+    pass
 
 
 @agent_app.command("interpret")
@@ -53,11 +74,25 @@ def query(
     question: typing.Optional[str] = typer.Option(None, "--query", "-q"),
 ):
     """
-    run a query against the agent using the direct ask - this is simply more low level that the interpret
+    run a query against the agent using the direct ask
     """
 
     # same as agent query but
     response = agent.ask(question)
+    logger.info(response)
+
+
+@agent_app.command("plan")
+def plan(
+    question: typing.Optional[str] = typer.Option(None, "--query", "-q"),
+):
+    """
+    describe a plan to use functions to solve the question without asking it
+    """
+    pagent = PlanningAgent()
+    logger.debug(pagent.PLAN)
+    # same as agent query but
+    response = pagent.run(question)
     logger.info(response)
 
 
@@ -68,34 +103,22 @@ def query(
 """
 
 
-@loader_app.command("init")
-def ingest_type(
-    source_uri: str = typer.Option(None, "--url", "-u"),
-    name: str = typer.Option(None, "--name", "-n"),
-    namespace: str = typer.Option("default", "--namespace", "-n"),
-    prompt: str = typer.Option(None, "--prompt", "-p"),
-):
-    """
-    initialize a schema using some sample remote data
-    """
-    tasks.generate_type_sample(
-        source_uri=source_uri, name=name, namespace=namespace, prompt=prompt
-    )
+# @loader_app.command("init")
+# def ingest_type(
+#     source_uri: str = typer.Option(None, "--url", "-u"),
+#     name: str = typer.Option(None, "--name", "-n"),
+#     namespace: str = typer.Option("default", "--namespace", "-n"),
+#     prompt: str = typer.Option(None, "--prompt", "-p"),
+# ):
+#     """
+#     initialize a schema using some sample remote data
+#     """
+#     tasks.generate_type_sample(
+#         source_uri=source_uri, name=name, namespace=namespace, prompt=prompt
+#     )
 
 
-@loader_app.command("page")
-def ingest_page(
-    url: str = typer.Option(None, "--url", "-u"),
-    store_name: str = typer.Option(None, "--name", "-n"),
-):
-    """
-    ingest a page at url into a named store...
-
-    """
-    pass
-
-
-@loader_app.command("entity")
+@data_app.command("entity")
 def ingest_type(
     entity_type: str = typer.Option(None, "--name", "-n"),
     url_prefix: str = typer.Option(None, "--prefix", "-p"),
@@ -134,18 +157,69 @@ def ingest_type(
 
 """
 
+    Indexing experiment - semantic network 
+    Also ingestion basic
+
+"""
+
+
+@data_app.command("add")
+def query(
+    name: str = typer.Option(None, "--name", "-n"),
+    site_url: str = typer.Option(None, "--url", "-i"),
+    prefix_filter: typing.Optional[str] = typer.Option(None, "--filter", "-f"),
+    batch_size: typing.Optional[int] = typer.Option(100, "--size", "-s"),
+    schedule: typing.Optional[str] = typer.Option(None, "--cron", "-c"),
+):
+    """
+    create an index on a schedule to ingest data or do it once off without schedule
+    we need a site map and name - this can be looking for json+ld or just do a page scrape
+    if we do this, the interesting thing then becomes how to build the network over it and how the functions are generated
+
+    see if we can use the filters in the site maps or not!!
+    Look into refs with the schema ids - if we can ref well know orgs etc that would be cool
+
+    as we ingest a lot of data we need to think about the value. why not just go to google or chat GPT?
+    we are trying to build a competency for organizing data and routing functions
+
+    add this by the API too - columnar store
+    """
+
+    pass
+
+
+@data_app.command("page")
+def ingest_page(
+    url: str = typer.Option(None, "--url", "-u"),
+    store_name: str = typer.Option(None, "--name", "-n"),
+):
+    """
+    ingest a page at url into a named store...
+
+    """
+    pass
+
+
+"""
+
       Main App and entry points
 
 """
 
 
-@app.command("run")
+@runner_app.command("function")
 def run_workflow_method(
     name: str = typer.Option(None, "--name", "-n"),
     method: typing.Optional[str] = typer.Option(None, "--method", "-m"),
     value: typing.Optional[str] = typer.Option(None, "--value", "-v"),
     is_test: typing.Optional[bool] = typer.Option(False, "--test", "-t"),
 ):
+    """
+    run functions defined in the library with --name
+    """
+    import json
+    from funkyprompt.ops.utils.inspector import load_op
+
     logger.info(f"Invoke -> {name=} {method=} {value=}")
 
     """
@@ -156,8 +230,6 @@ def run_workflow_method(
     
     to test the workflows and not worry about real handlers you can pass -t in the workflow
     """
-    import json
-    from funkyprompt.ops.utils.inspector import load_op
 
     with open("/tmp/out", "w") as f:
         if is_test:
@@ -177,7 +249,7 @@ def run_workflow_method(
         return data or []
 
 
-@app.command("serve")
+@runner_app.command("api")
 def serve_app(
     port: typing.Optional[int] = typer.Option(False, "--port", "-p"),
     voice_interface_enabled: typing.Optional[bool] = typer.Option(
@@ -193,8 +265,12 @@ def serve_app(
     uvicorn.run(app, host="0.0.0.0", port=port or 8008)
 
 
-@app.command("scheduler")
+@runner_app.command("scheduler")
 def scheduler_start():
+    """
+    run the scheduler to invoke functions on cron schedules
+    """
+
     from funkyprompt.ops.deployment.scheduler import start_scheduler
 
     logger.info(f"Starting scheduler")

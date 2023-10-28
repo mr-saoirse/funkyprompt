@@ -40,7 +40,7 @@ def get_recipes(what_to_cook: str):
     return vs(what_to_cook)
 
 
-def get_restaurant_reviews(name_or_type_of_place: str, location: str):
+def get_restaurant_reviews(name_or_type_of_place: str, location: str = None):
     """
     Get reviews by passing in a descriptive question. Be as detailed as you can be with your request for best results
 

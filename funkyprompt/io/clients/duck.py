@@ -62,10 +62,10 @@ class DuckDBClient:
         self._cursor = duckdb.connect()
         AWS_ACCESS_KEY_ID = os.environ["AWS_ACCESS_KEY_ID"]
         AWS_SECRET_ACCESS_KEY = os.environ["AWS_SECRET_ACCESS_KEY"]
-
+        AWS_DEFAULT_REGION = os.environ["AWS_DEFAULT_REGION"]
         if AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY:
             creds = f"""
-                SET s3_region='us-east-1';
+                SET s3_region='{AWS_DEFAULT_REGION}';
                 SET s3_access_key_id='{AWS_ACCESS_KEY_ID}';
                 SET s3_secret_access_key='{AWS_SECRET_ACCESS_KEY}';"""
 

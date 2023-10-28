@@ -44,11 +44,17 @@ class AgentBase:
                 4. Lets use all functions that we can until we find the answer
                 """
 
-    def __init__(cls, modules, **kwargs):
+    USER_HINT = """If and only if you do not have enough context after using the information provided, 
+                              lookup more functions to call to get more information. 
+                              The new functions will be added to the list of available functions to call
+                """
+
+    def __init__(cls, modules=None, **kwargs):
         """
         modules are used to inspect functions including functions that do deep searches of other modules and data
 
         """
+        modules = modules or built_in_modules
         # add function revision and pruning as an option
         cls._built_in_functions = [describe_function(save_file_collection)]
         cls._built_in_functions += [describe_function(cls.available_function_search)]
@@ -161,16 +167,16 @@ class AgentBase:
         ] = None,
         limit: int = 10,
     ) -> dict:
-        """ """
+        """
+        run the interpreter loop
+        """
         cls._messages = [
             {"role": "system", "content": cls.PLAN},
             {"role": "user", "content": question},
             # we have to add these by-the-ways to give permission to go wild
             {
                 "role": "user",
-                "content": """If and only if you do not have enough context after using the information provided, 
-                              lookup more functions to call to get more information. 
-                              The new functions will be added to the list of available functions to call""",
+                "content": AgentBase.USER_HINT,
             },
         ]
 
@@ -233,6 +239,60 @@ class AgentBase:
         return cls.run(
             question=question, initial_functions=initial_functions, limit=limit
         )
+
+
+class PlanningAgent(AgentBase):
+    """
+    simple planning agent; interesting things to consider are
+    - what is the zero shot planning horizon and how we iterate (regrouping)
+    - structured representation of plans
+    - loading and purging functions and context
+    - materializing functions to fill gaps in plan execution (small worlds)
+    - a ket thing is known when functions take one word or context type inputs because for vector stores is large in large out but for many functions we need simple tokens
+
+    example question:
+     fp agent plan -q "find out Eunseo's favourite thing and then decide where to bring her for dinner"
+
+    Here is an example graph it produced. I like the variable notation - its stigmergic
+    But the reasoning is not perfect.
+
+    JSON graph representation:
+
+    ```json
+    {
+    "functions":[
+        {
+            "name":"get_information_on_fairy_tale_characters",
+            "args":{
+                "question":"What are the favourite foods of Snow White and Sinbad?"
+            },
+            "next":{
+                "name":"get_persons_favourite_thing_of_type",
+                "args":{
+                "person":"${get_information_on_fairy_tale_characters.result}",
+                "thing_type":"food"
+                },
+                "next":{
+                "name":"get_restaurant_reviews",
+                "args":{
+                    "name_or_type_of_place":"${get_persons_favourite_thing_of_type.result}"
+                }
+                }
+            }
+        }
+    ]
+    }
+    ```
+
+    """
+
+    PLAN = f""" You are  function using and planning agent. proceed with the following steps"
+                1. Consider the question you are asked
+                2. Call the function to find other available functions that might help answering this question
+                3. From all the functions you find, list each function with a rating from 0 to 100, comment on how you might use the function and what entity the function describes
+                4. For the most useful functions, construct a JSON graph representation of the chain of functions (with args) you would call, passing inputs of one function to inputs to another.
+                """
+    USER_HINT = "Please return to me your graph representation of the plan and function rankings with respect to the question asked"
 
 
 """TODO

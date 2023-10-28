@@ -17,7 +17,7 @@ spec:
           image: 286292902993.dkr.ecr.us-east-1.amazonaws.com/infra-test
           env:
             - name: ARGS
-              value: "serve"
+              value: "run api"
           resources:
             limits:
               cpu: "1"
@@ -48,7 +48,7 @@ spec:
       image: 286292902993.dkr.ecr.us-east-1.amazonaws.com/infra-test
       env:
         - name: ARGS
-          value: "scheduler"
+          value: "run scheduler"
       resources:
         limits:
           cpu: "1"

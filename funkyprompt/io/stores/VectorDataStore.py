@@ -80,6 +80,9 @@ class VectorDataStore(AbstractStore):
                 embedding_provider=self._embeddings_provider,
             )
 
+    def query(self, query):
+        return self._data.query_dataset(query)
+
     def run_search(self, query, limit=5, probes=20, refine_factor=10):
         """
         perform the vector search for the query directly on the store (lance is the build in one)

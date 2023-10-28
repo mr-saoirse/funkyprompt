@@ -71,7 +71,7 @@ class FunctionDescription(BaseModel):
 
         a function alias is useful in case of name collisions
         """
-        d = cls.dict()
+        d = cls.model_dump()
         object_descriptions = cls.pop_object_types(d["parameters"])
         return {
             "name": function_alias or d["name"],
@@ -98,7 +98,8 @@ def describe_function(
 ) -> FunctionDescription:
     """
     Used to get the description of the method for use with the LLM
-
+    This is only setup for a few test cases and not for general types
+    assumes some Pydantic types or optional/primitives or returns object
 
     """
     type_hints = typing.get_type_hints(function)
@@ -132,7 +133,7 @@ def describe_function(
     def parse_args_into_dict(args_text):
         """
         parse out args with type mapping for the agent
-        TODO: support more complex typing e.g. options and unions etc
+        TODO: support more complex typing e.g. options and unions etc...
         """
         args_dict = {}
 
@@ -142,6 +143,9 @@ def describe_function(
                 param_name = parts[0].strip()
                 param_description = parts[1].strip()
                 T = type_hints[param_name]
+                if hasattr(T, "__args__"):
+                    # this is just for the optional case - not general case
+                    T = T.__args__[0]
                 # TODO: handle optional types e.g Optional[str]
                 args_dict[param_name] = {
                     # assuming the name of the type matches between args and doc string
