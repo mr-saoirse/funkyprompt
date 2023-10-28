@@ -18,7 +18,7 @@ def get_information_on_fairy_tale_characters(question: str):
         question: ask a question in sufficient detail
 
     **Returns**
-        text details related to your question
+        returns text details related to your question about fairy tale characters
     """
     vs = VectorDataStore(FairyTales)
 
@@ -33,7 +33,7 @@ def get_recipes(what_to_cook: str):
         what_to_cook: procide a request for what you would like to make
 
     **Returns**
-        returns recipe / instructions
+        returns detailed recipe / instructions
 
     """
     vs = VectorDataStore(AbstractVectorStoreEntry.create_model("Recipe"))
@@ -49,7 +49,7 @@ def get_restaurant_reviews(name_or_type_of_place: str, location: str = None):
         location: specific city or region where you want to find restaurants
 
     **Returns**
-        returns restaurant reviews
+        returns detailed restaurant reviews
 
     """
 

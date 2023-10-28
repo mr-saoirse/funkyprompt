@@ -248,7 +248,7 @@ class PlanningAgent(AgentBase):
     - structured representation of plans
     - loading and purging functions and context
     - materializing functions to fill gaps in plan execution (small worlds)
-    - a ket thing is known when functions take one word or context type inputs because for vector stores is large in large out but for many functions we need simple tokens
+    - a key thing is known when functions take one word or context type inputs because for vector stores is large in large out but for many functions we need simple tokens
 
     example question:
      fp agent plan -q "find out Eunseo's favourite thing and then decide where to bring her for dinner"
@@ -291,6 +291,7 @@ class PlanningAgent(AgentBase):
                 2. Call the function to find other available functions that might help answering this question
                 3. From all the functions you find, list each function with a rating from 0 to 100, comment on how you might use the function and what entity the function describes
                 4. For the most useful functions, construct a JSON graph representation of the chain of functions (with args) you would call, passing inputs of one function to inputs to another.
+                5. You should know if the inputs and return variables accept simple values or complex long form text when chaining functions because you should not pass simple keywords to search type queries nor should you pass long text results to functions that take discrete values.
                 """
     USER_HINT = "Please return to me your graph representation of the plan and function rankings with respect to the question asked"
 
