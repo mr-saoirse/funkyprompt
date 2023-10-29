@@ -26,14 +26,14 @@ Now that we have some data we can see how the store works.&#x20;
 
 ```python
 from funkyprompt.io import query_stores, VectorDataStore
-store = VectorDataStore._load_vector_store('Guides')
+store = VectorDataStore._load_vector_store('FoodyGuides')
 #in a jupyter notebook
 store.load()
 ```
 
 <figure><img src="../.gitbook/assets/image.png" alt=""><figcaption><p>load will load a dataframe so you can preview the data</p></figcaption></figure>
 
-You can load the data from store from the default namespace or you can query it as shown below - this embeds a text strong and optionally allows filtering by columns making hybrid search easy.
+You can load the data from store from the default namespace or you can query it as shown below - this embeds a text string and optionally allows filtering by columns making hybrid search easy.
 
 ```python
 store.run_search("Pizza in New York", doc_id='NYC’s New Restaurant Openings')
@@ -42,28 +42,33 @@ store.run_search("Pizza in New York", doc_id='NYC’s New Restaurant Openings')
 You can query and (join) over datasets by name too using SQL because of the magic of DuckDB+Lance but this is not a common use case in `funkyprompt`
 
 ```python
-query_stores("Select id, text, vector from Guides limit 1")
+query_stores("Select id, text, vector from FoodyGuides limit 1")
 ```
 
 ### 2 Understanding Pydantic types for creating stores
 
-You can create stores by first defining schema as Pydantic types. As it happens, if you don't want to define a type you can use dynamic types or simple base types too. For example you can store an `AbstractVectorStoreEntry` into a named store or you can use any `funkyprompt` base class to create dynamic models from data. The important think is to also start from a schema.
+You can create stores by first defining schema as Pydantic types. As it happens, if you don't want to define a type in your codebase, you can use dynamic [Pydantic models](https://docs.pydantic.dev/latest/concepts/models/) from simple base Pydantic types too. For example you can store an `AbstractVectorStoreEntry` into a named store or you can use any `funkyprompt` base class to create dynamic models from data. The important thing is to **always start from a schema**.
 
-For example you can do the following to create a Pydantic type to generate stores...
+{% hint style="info" %}
+In `funkyprompt` we always start with the schema!
+{% endhint %}
+
+For example you can do the following to create a Pydantic type to generate a store...
 
 ```python
-MyType = AbstractVectorStoreEntry.from_data(name, data, namespace='default')
+MyType = AbstractVectorStoreEntry.from_data(<name>, <data>, namespace='default')
 ```
 
 Or if you don't want a vector store entry you can use the base type and store things in columnar stores
 
 ```
-MyType = AbstractEntity.create_model_from_data(name, data, namespace='default')
+MyType = AbstractEntity.create_model_from_data(<name>, <data>)
 ```
 
 If you already have a dataset (e.g. lance format) you can also "reverse engineer" the Pydantic model from the `pyarrow` schema
 
-<pre class="language-python"><code class="lang-python"><strong>AbstractEntity.create_model_from_pyarrow(name, schema, embedding_provider='open-ai')
+<pre class="language-python" data-overflow="wrap"><code class="lang-python"><strong>AbstractEntity.create_model_from_pyarrow(&#x3C;name>, &#x3C;schema>, 
+</strong><strong>       embedding_provider='open-ai')
 </strong></code></pre>
 
 #### Example 1: Simple text&#x20;
@@ -95,14 +100,15 @@ Once you have created a store with data you can run the agent against it
 
 ```python
 #you can do this explicitly by adding the store as a function description
-#recall that the agent needs functions to run the interpreter loop
+#(recall that the agent needs functions to run the interpreter loop)
 agent("what is interesting", [store.as_function_description()])
-#or you can use the build in discovery since the agent will lookup functions 
-#and the stores will be loaded as function
+
+#or you can use the built in fuction discovery as the agent will lookup functions 
+#the stores will be loaded as functions automatically
 agent("what is interesting")
 ```
 
-You can see above (albeit via a simple example) everything from defining types, to loading data, to querying the store and using the store in an agent). We will follow the same steps again for a columnar type.&#x20;
+You can see in this example above everything from defining types, to loading data, to querying the store and using the store in an agent. We will follow the same steps again for a columnar type next.
 
 #### Example 2: Structure Columnar data
 
