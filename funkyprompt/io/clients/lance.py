@@ -35,6 +35,12 @@ class LanceDataTable:
             )
             self._table = self.table_from_schema(self._name, schema=schema)
 
+    @staticmethod
+    def load_dataset(name, namespace="default"):
+        uri = f"{VECTOR_STORE_ROOT_URI}/{namespace}/{name}.lance"
+        logger.debug(f"loading {uri}")
+        return lance.dataset(uri)
+
     @property
     def name(self):
         return self._name
@@ -50,6 +56,10 @@ class LanceDataTable:
     @property
     def database_uri(self):
         return self._db_root
+
+    @property
+    def dataset(self):
+        return lance.dataset(self._uri)
 
     def __repr__(self):
         return f"LanceDataSet({self._name}): {self._uri}"
@@ -75,7 +85,7 @@ class LanceDataTable:
             self._table.delete(f"{key} IN ({in_list})")
 
             return self._table.add(data=records, mode=mode)
-        return self._dataset
+        return self.dataset
 
     def query_dataset(self, query):
         dataset = lance.dataset(self._uri)

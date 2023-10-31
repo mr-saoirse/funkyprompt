@@ -42,7 +42,7 @@ def get_persons_favourite_thing_of_type(person: Person, thing_type: str) -> str:
         thing_type: The class of thing we are interested in e.g. 'color', 'food' or 'animal'
 
     **Returns**
-        We return information on the persons favourite thing
+        We return structured information on the persons favourite thing
 
     **Raises**
         Exception
@@ -65,7 +65,7 @@ def get_persons_action_if_you_know_favourite_type_of_thing(
         thing: The thing itself e.g. if the type is 'color' the thing might be 'gold' or if the type is 'animal' the thing will be 'cat'
 
     **Returns**
-        We return information on the persons action given favourite thing
+        We return structured information on the persons action given favourite thing
 
     **Raises**
         Exception

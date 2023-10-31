@@ -1,9 +1,14 @@
+"""
+CORE, TODO: Schema management and migration with function proxies over the spaces - key to good RAGs. A DocumentGraph Model is key here
+"""
+
 from loguru import logger
 import os
 from pathlib import Path
 import uuid
 import hashlib
 from ._version import __version__
+from getpass import getuser
 
 USER_HOME = Path.home()
 DEFAULT_HOME = f"{USER_HOME}/.funkyprompt"
@@ -21,6 +26,10 @@ def str_hash(s=None, m=5, prefix="fpr"):
     h = hashlib.shake_256(s).hexdigest(m).upper()
     return f"{prefix}{h}"
 
+
+from datetime import datetime
+
+utc_now_str = lambda: datetime.utcnow().isoformat()
 
 from . import io, ops
 from .agent.AgentBase import AgentBase

@@ -94,7 +94,7 @@ def is_pydantic_type(t):
 
 
 def describe_function(
-    function: typing.Callable, add_sys_fields=False
+    function: typing.Callable, add_sys_fields=False, augment_description=None
 ) -> FunctionDescription:
     """
     Used to get the description of the method for use with the LLM
@@ -188,6 +188,8 @@ def describe_function(
                 parsed_sections[section_name.lower()] = section_content
 
     parsed_sections["description"] = sections[0].strip()
+    if augment_description:
+        parsed_sections["description"] += f"\n{augment_description}"
     parsed_sections["name"] = function.__name__
 
     return FunctionDescription(**parsed_sections, function=function)

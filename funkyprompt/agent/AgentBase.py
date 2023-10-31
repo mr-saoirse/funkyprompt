@@ -3,6 +3,7 @@ import openai
 from funkyprompt import logger
 import typing
 import json
+import funkyprompt
 from funkyprompt.io.tools.fs import save_file_collection
 from funkyprompt.ops import examples as built_in_modules
 from funkyprompt.ops.utils.inspector import (
@@ -10,8 +11,19 @@ from funkyprompt.ops.utils.inspector import (
     list_function_signatures,
     FunctionDescription,
 )
+from funkyprompt.io.stores import VectorDataStore
+from .auditing import InterpreterSession
 
-DEFAULT_MODEL = "gpt-4"
+# import for now for the loader below
+from funkyprompt.ops.examples import *
+
+DEFAULT_MODEL = "gpt-4"  # has a 32k context or 8k
+GPT3 = "gpt-3.5-turbo"
+GPT3_16k = "gpt-3.5-turbo-16k"
+
+# MODELS https://openai.com/pricing
+BABBAGE = "babbage-002"
+DAVINCI = "davinci-002"
 
 
 class AgentBase:
@@ -58,8 +70,14 @@ class AgentBase:
         # add function revision and pruning as an option
         cls._built_in_functions = [describe_function(save_file_collection)]
         cls._built_in_functions += [describe_function(cls.available_function_search)]
+        cls._audit_store = VectorDataStore(InterpreterSession)
 
-    def invoke(cls, fn: typing.Callable, args: typing.Union[str, dict]):
+    def invoke(
+        cls,
+        fn: typing.Callable,
+        args: typing.Union[str, dict],
+        max_response_length=int(3 * 1e4),
+    ):
         """
         here we parse and audit stuff using Pydantic types
         """
@@ -72,6 +90,19 @@ class AgentBase:
                 logger.debug(f"{sys_field}  = {args.pop(sys_field)}")
 
         data = fn(**args)
+
+        """
+        experimental - refactor out
+        we should come up with a cheap way to summarize
+        the idea here is you are "forcing" the interpreter to summarize but you should not. how to?
+        
+        """
+        if len(str(data)) > max_response_length:
+            return cls.summarize(
+                question=cls._question,
+                data=data,
+                max_response_length=max_response_length,
+            )
 
         return data
 
@@ -99,16 +130,8 @@ class AgentBase:
         retrieved_functions = list_function_signatures(built_in_modules)
 
         """
-        CHEAT BLOCK TEMP TO TEST - when lookup functions we will augment was callable
+        CHEAT BLOCK TEMP TO TEST - when lookup functions we will augment with callables
         """
-        from funkyprompt.ops.examples import (
-            get_persons_favourite_thing_of_type,
-            get_persons_action_if_you_know_favourite_type_of_thing,
-            get_recipes,
-            get_information_on_fairy_tale_characters,
-            get_restaurant_reviews,
-        )
-        from funkyprompt.ops.utils.inspector import describe_function
 
         fns = [
             describe_function(get_persons_favourite_thing_of_type),
@@ -116,6 +139,8 @@ class AgentBase:
             describe_function(get_recipes),
             describe_function(get_information_on_fairy_tale_characters),
             describe_function(get_restaurant_reviews),
+            describe_function(get_new_your_food_scene_guides),
+            describe_function(get_context),
         ]
 
         cls._active_functions += fns
@@ -139,19 +164,93 @@ class AgentBase:
         """
         cls._messages = [cls._messages[:2]] + new_messages
 
-    def ask(cls, question: str):
+    def cheap_summarize(cls, question: str, model=None):
+        """
+        this is a direct request rather than the interpreter mode - cheap model to do a reduction
+        https://platform.openai.com/docs/api-reference/completions/object
+        """
+        plan = f""" Answer the users question as asked  """
+
+        logger.debug("summarizing...")
+
+        response = openai.Completion.create(
+            model=model or DAVINCI,
+            prompt=question,
+        )
+
+        return response["choices"][0]["text"]
+
+    def summarize(
+        cls,
+        question: str,
+        data: str,
+        model=None,
+        strict=False,
+        max_response_length=int(3 * 1e4),
+    ):
+        """
+        question is context and data is what we need to summarize
+        this is a direct request rather than the interpreter mode
+        looking into strategies to summarize or compress cheaply (cheaper)
+        the question context means this is also a filter so we can summarize and filter to reduce the size of text
+
+        Example:
+            from funkyprompt.io.tools.downloader import load_example_foody_guides
+            load_example_foody_guides(limit=10)
+
+            agent("Where can you recommend to eat in New York? Please provide some juicy details about why they are good and the location of each")
+            agent("Where can you recommend to eat Dim sum or sushi in New York? Please provide some juicy details about why they are good and the location of each")
+
+        """
+        plan = f""" Answer the users question as asked  """
+
+        Summary = AbstractVectorStoreEntry.create_model("Summary")
+        chunks = Summary(name="summary", text=str(data)).split_text(max_response_length)
+        logger.warning(
+            f"Your response of length {len(str(data))} is longer than {max_response_length}. Im going to summarize it as {len(chunks)} chunks assuming its a text response but you should think about your document model"
+        )
+
+        # create a paginator
+        def _summarize(prompt):
+            logger.debug("Summarizing...")
+            response = openai.ChatCompletion.create(
+                model=model or GPT3_16k,
+                messages=[
+                    {"role": "system", "content": plan},
+                    {"role": "user", "content": f"{prompt}"},
+                ],
+            )
+
+            return response["choices"][0]["message"]["content"]
+
+        summary = "".join(
+            _summarize(
+                f"""Please concisely summarize the text concisely in the context of the question. 
+                  {'In your response, strictly omit anything that does not seem relevant in context of the users interests. Dont even mention it at all!' if strict else ''}.
+                    question:
+                    {question}
+                    text: 
+                    {item.text}"""
+            )
+            for item in chunks
+        )
+
+        return {"summarized_response": summary}
+
+    def ask(cls, question: str, model=None):
         """
         this is a direct request rather than the interpreter mode
         """
         plan = f""" Answer the users question as asked  """
 
+        logger.debug("asking...")
         messages = [
             {"role": "system", "content": plan},
             {"role": "user", "content": f"{question}"},
         ]
 
         response = openai.ChatCompletion.create(
-            model=DEFAULT_MODEL,
+            model=model or DEFAULT_MODEL,
             messages=messages,
         )
 
@@ -166,10 +265,13 @@ class AgentBase:
             typing.Union[FunctionDescription, typing.Callable]
         ] = None,
         limit: int = 10,
+        session_key=None,
     ) -> dict:
         """
         run the interpreter loop
         """
+        # store question for context
+        cls._question = question
         cls._messages = [
             {"role": "system", "content": cls.PLAN},
             {"role": "user", "content": question},
@@ -190,7 +292,6 @@ class AgentBase:
         cls._active_function_callables = {
             f.name: f.function for f in cls._active_functions
         }
-
         logger.debug(
             f"Entering the interpret loop with functions {list(cls._active_function_callables.keys())}"
         )
@@ -205,7 +306,6 @@ class AgentBase:
             )
 
             response_message = response["choices"][0]["message"]
-
             logger.debug(response_message)
 
             function_call = response_message.get("function_call")
@@ -214,7 +314,6 @@ class AgentBase:
                 fn = cls._active_function_callables[function_call["name"]]
                 args = function_call["arguments"]
                 function_response = cls.invoke(fn, args)
-
                 logger.debug(f"Response: {function_response}")
 
                 cls._messages.append(
@@ -228,7 +327,37 @@ class AgentBase:
             if response["choices"][0]["finish_reason"] == "stop":
                 break
 
+        cls._dump(
+            name=f"run{funkyprompt.str_hash()}",
+            question=question,
+            response=response_message["content"],
+            session_key=session_key,
+        )
+
         return response_message["content"]
+
+    def _dump(cls, name, question, response, session_key):
+        """
+        dump the session to the store
+        """
+        logger.debug(f"Dumping session")
+
+        # todo add attention comments which are useful
+        record = InterpreterSession(
+            plan=cls.PLAN,
+            session_key=session_key,
+            name=name,
+            question=question,
+            response=response,
+            # dump the function descriptions that we used - some may have been purged
+            function_usage_graph=json.dumps(
+                [f.function_dict() for f in cls._active_functions]
+            ),
+            audited_at=funkyprompt.utc_now_str(),
+            messages=json.dumps(cls._messages),
+        )
+
+        cls._audit_store.add(record)
 
     def __call__(
         cls,
@@ -239,61 +368,6 @@ class AgentBase:
         return cls.run(
             question=question, initial_functions=initial_functions, limit=limit
         )
-
-
-class PlanningAgent(AgentBase):
-    """
-    simple planning agent; interesting things to consider are
-    - what is the zero shot planning horizon and how we iterate (regrouping)
-    - structured representation of plans
-    - loading and purging functions and context
-    - materializing functions to fill gaps in plan execution (small worlds)
-    - a key thing is known when functions take one word or context type inputs because for vector stores is large in large out but for many functions we need simple tokens
-
-    example question:
-     fp agent plan -q "find out Eunseo's favourite thing and then decide where to bring her for dinner"
-
-    Here is an example graph it produced. I like the variable notation - its stigmergic
-    But the reasoning is not perfect.
-
-    JSON graph representation:
-
-    ```json
-    {
-    "functions":[
-        {
-            "name":"get_information_on_fairy_tale_characters",
-            "args":{
-                "question":"What are the favourite foods of Snow White and Sinbad?"
-            },
-            "next":{
-                "name":"get_persons_favourite_thing_of_type",
-                "args":{
-                "person":"${get_information_on_fairy_tale_characters.result}",
-                "thing_type":"food"
-                },
-                "next":{
-                "name":"get_restaurant_reviews",
-                "args":{
-                    "name_or_type_of_place":"${get_persons_favourite_thing_of_type.result}"
-                }
-                }
-            }
-        }
-    ]
-    }
-    ```
-
-    """
-
-    PLAN = f""" You are  function using and planning agent. proceed with the following steps"
-                1. Consider the question you are asked
-                2. Call the function to find other available functions that might help answering this question
-                3. From all the functions you find, list each function with a rating from 0 to 100, comment on how you might use the function and what entity the function describes
-                4. For the most useful functions, construct a JSON graph representation of the chain of functions (with args) you would call, passing inputs of one function to inputs to another.
-                5. You should know if the inputs and return variables accept simple values or complex long form text when chaining functions because you should not pass simple keywords to search type queries nor should you pass long text results to functions that take discrete values.
-                """
-    USER_HINT = "Please return to me your graph representation of the plan and function rankings with respect to the question asked"
 
 
 """TODO

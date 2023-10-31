@@ -12,15 +12,18 @@ various entry points are provide for local testing and cloud contexts
 """
 import typer
 import typing
+import funkyprompt
 from funkyprompt import logger
 from funkyprompt.io.tools import fs
 from funkyprompt import agent
-from funkyprompt.agent.AgentBase import PlanningAgent
+from funkyprompt.agent.planning import PlanningAgent
 
 app = typer.Typer()
 
 # loader_app = typer.Typer()
 # app.add_typer(loader_app, name="ingest")
+
+# test schema migration: does lance allow saving things that are not in schema?? in any case do the migration of new vars before or after
 
 data_app = typer.Typer()
 app.add_typer(
@@ -59,13 +62,14 @@ def query_store(
 @agent_app.command("interpret")
 def query(
     question: typing.Optional[str] = typer.Option(None, "--query", "-q"),
+    session_key: typing.Optional[str] = typer.Option(None, "--session_key", "-k"),
 ):
     """
     run a query against the agent using the interpreter loop
     """
 
     # same as agent query but
-    response = agent(question)
+    response = agent(question, session_key=session_key)
     logger.info(response)
 
 
@@ -85,14 +89,16 @@ def query(
 @agent_app.command("plan")
 def plan(
     question: typing.Optional[str] = typer.Option(None, "--query", "-q"),
+    session_key: typing.Optional[str] = typer.Option(None, "--session_key", "-k"),
 ):
     """
     describe a plan to use functions to solve the question without asking it
     """
     pagent = PlanningAgent()
     logger.debug(pagent.PLAN)
+    logger.debug("------------")
     # same as agent query but
-    response = pagent.run(question)
+    response = pagent.run(question, session_key=session_key)
     logger.info(response)
 
 
@@ -101,21 +107,6 @@ def plan(
      LOADERS: for ingesting test data
 
 """
-
-
-# @loader_app.command("init")
-# def ingest_type(
-#     source_uri: str = typer.Option(None, "--url", "-u"),
-#     name: str = typer.Option(None, "--name", "-n"),
-#     namespace: str = typer.Option("default", "--namespace", "-n"),
-#     prompt: str = typer.Option(None, "--prompt", "-p"),
-# ):
-#     """
-#     initialize a schema using some sample remote data
-#     """
-#     tasks.generate_type_sample(
-#         source_uri=source_uri, name=name, namespace=namespace, prompt=prompt
-#     )
 
 
 @data_app.command("entity")
@@ -134,7 +125,7 @@ def ingest_type(
     if the save option is set, we write to a vector store using convention
     otherwise we write to the terminal
     """
-    from funkyprompt.io.tools.downloader import site_map_from_sample_url, crawl
+    from funkyprompt.io.tools.ingestion import site_map_from_sample_url, crawl
 
     entity_type = fs.load_type(entity_type)
     sample_url = entity_type.Config.sample_url

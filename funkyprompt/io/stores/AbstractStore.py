@@ -31,3 +31,22 @@ class AbstractStore:
         store: AbstractStore = cls(entity_type)
         store.add(records, **kwargs)
         return store
+
+    def as_function_description(cls, context=None):
+        from funkyprompt import describe_function
+
+        context = (
+            context
+            or f"Provides context about {cls._entity_name} - ask your full question"
+        )
+
+        return describe_function(cls.run_search, augment_description=context)
+
+    def as_agent(cls):
+        """
+        convenience retrieve agent with self as function description to test stores
+        """
+        from funkyprompt import agent
+        from functools import partial
+
+        return partial(agent.run, initial_functions=[cls.as_function_description()])

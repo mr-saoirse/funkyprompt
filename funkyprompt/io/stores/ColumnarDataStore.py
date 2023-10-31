@@ -47,6 +47,8 @@ class ColumnarDataStore(AbstractStore):
         Add the fields configured on the Pydantic type that are columnar - defaults all
         These are merged into parquet files on some path in the case of this tool
         """
+        if records and not isinstance(records, list):
+            records = [records]
 
         if len(records):
             logger.info(f"Writing {self._table_path}. {len(records)} records.")

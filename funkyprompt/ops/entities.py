@@ -4,10 +4,18 @@ notes we have use by_alias false in pydantic schema resolution which may not be 
 
 from typing import List, Optional
 from pydantic import Field, BaseModel, create_model, model_validator
-
+import math
 import json
 import numpy as np
 import typing
+import funkyprompt
+import pyarrow as pa
+import datetime
+import re
+
+# When we are mature we would store configuration like this somewhere more central
+INSTRUCT_EMBEDDING_VECTOR_LENGTH = 768
+OPEN_AI_EMBEDDING_VECTOR_LENGTH = 1536
 
 
 def load_type(namespace, entity_name):
@@ -24,12 +32,71 @@ def load_type(namespace, entity_name):
     return getattr(__import__(module, fromlist=[entity_name]), entity_name)
 
 
-# When we are mature we would store configuration like this somewhere more central
-INSTRUCT_EMBEDDING_VECTOR_LENGTH = 768
-OPEN_AI_EMBEDDING_VECTOR_LENGTH = 1536
+def map_pyarrow_type_info(field_type):
+    """
+    Load not only the type but extra type metadata from pyarrow that we use in Pydantic type
+    """
+    t = map_pyarrow_type(field_type)
+    d = {"type": t}
+    if pa.types.is_fixed_size_list(field_type):
+        d["fixed_size_length"] = field_type.list_size
+    return d
+
+
+def map_pyarrow_type(field_type):
+    """
+    basic mapping between pyarrow types and typing info for some basic types we use in stores
+    """
+    if pa.types.is_fixed_size_list(field_type):
+        return typing.List[map_pyarrow_type(field_type.value_type)]
+    if pa.types.is_map(field_type):
+        return dict
+    if pa.types.is_list(field_type):
+        return list
+    else:
+        if field_type == pa.string():
+            return str
+        if field_type == pa.string():
+            return str
+        if field_type in [pa.int16(), pa.int32(), pa.int8(), pa.int64()]:
+            return int
+        if field_type in [pa.float16(), pa.float32(), pa.float64()]:
+            return float
+        if field_type in [pa.date32(), pa.date64()]:
+            return datetime.datetime
+        if field_type in [pa.bool_()]:
+            return bool
+        if field_type in [pa.binary()]:
+            return bytes
+
+
+def map_field_types_from_pa_schema(schema):
+    """
+    given a pyarrow schema return type info so we can create the Pydantic Model from the pyarrow table
+    """
+    return {field.name: map_pyarrow_type_info(field.type) for field in schema}
+
+
+def pydantic_field_from_field_info(field_info):
+    """
+    We can use a custom field info to map from pyarrow or other places to describe out own conventions
+    if mature a Pydantic Object should be used to describe schema info but for now we are experimenting
+    an example entry is for a fixed length pyarrow type which maps to `Field(float, fixed_sized_list=1536)` for open ai embeddings
+
+    """
+
+    def _Field(fi):
+        t = fi.pop("type")
+        return Field(t, **fi)
+
+    return {k: _Field(v) for k, v in dict(field_info).items()}
 
 
 class NpEncoder(json.JSONEncoder):
+    """
+    A Json encoder that is a little bit more understanding of  numpy types
+    """
+
     def default(self, obj):
         dtypes = (np.datetime64, np.complexfloating)
         if isinstance(obj, dtypes):
@@ -46,6 +113,10 @@ class NpEncoder(json.JSONEncoder):
 
 
 class AbstractEntity(BaseModel):
+    """
+    The funkyprompt base type with some store helper attributes
+    """
+
     @classmethod
     @property
     def namespace(cls):
@@ -118,6 +189,16 @@ class AbstractEntity(BaseModel):
         d["__namespace__"] = cls.namespace
         d = json.dumps(d, cls=NpEncoder, default=str)
         return f"""```json{d}```"""
+
+    @classmethod
+    def create_model_from_data(cls, name, data, namespace=None, **kwargs):
+        pass
+
+    @classmethod
+    def create_model_from_pyarrow(cls, name, py_arrow_schema, namespace=None, **kwargs):
+        schema_info = map_field_types_from_pa_schema(py_arrow_schema)
+        fields = {k: pydantic_field_from_field_info(v) for k, v in fields.items()}
+        create_model(name, **fields, __module__=namespace, __base__=cls)
 
     @classmethod
     def create_model(cls, name, namespace=None, **fields):
@@ -228,6 +309,8 @@ class AbstractEntity(BaseModel):
 
 class AbstractVectorStoreEntry(AbstractEntity):
     """
+    The Base of Vector Store types that manages vector embedding lengths
+
     We can store vectors and other attributes
     At a minimum the and text are needed as we can generate other ids from those
     Name must be unique if the id is omitted of course - but its the primary key so it makes sense
@@ -250,10 +333,37 @@ class AbstractVectorStoreEntry(AbstractEntity):
             values["doc_id"] = values["name"]
         return values
 
+    def split_text(cls, max_length=int(1 * 1e4), **options):
+        """
+        simple text splitter - working on document model
+        """
+
+        def part(s, i):
+            return s[i * max_length : (i * max_length) + max_length]
+
+        # we keep the model N times with partial items
+        # we assume for now that we have univariate vector schema which in general will not be the case
+        return [
+            cls.model_copy(update={"text": part})
+            for part in [
+                part(cls.text, i) for i in range(math.ceil(len(cls.text) / max_length))
+            ]
+        ]
+
+
+class InstructAbstractVectorStoreEntry(AbstractVectorStoreEntry):
+    class Config:
+        embeddings_provider = "instruct"
+
+    vector: Optional[List[float]] = Field(
+        fixed_size_length=INSTRUCT_EMBEDDING_VECTOR_LENGTH,
+        default_factory=list,
+    )
+
 
 class SchemaOrgVectorEntity(AbstractVectorStoreEntry):
     """
-    A helper for mapping schema data usually scrapped in Json+LD
+    A helper for mapping schema.org data usually scrapped in Json+LD
     we want tp put this in various pydantic types to use the Rag Store
     """
 
@@ -295,14 +405,19 @@ class SchemaOrgVectorEntity(AbstractVectorStoreEntry):
         exclude_fields_snake_case=None,
         text_fields=None,
     ):
-        # is this a new dep - maybe we wont use it
-        from stringcase import snakecase
+        # from stringcase import snakecase
+        def snakecase(s):
+            # Replace spaces and underscores with a single underscore
+            s = re.sub(r"[-_ ]+", "_", s)
+            # Remove non-alphanumeric characters except underscores
+            s = re.sub(r"[^a-zA-Z0-9_]", "", s)
+            return s.lower()
 
         """
         
         schema org attributes but snake case and cleaned
         for now we will not type until we have a use case for columnar data      
-        schema can be a type of an instance
+        schema can be a type or an instance in the json format of python typed objects
         if its a type from schema org it will be better for generating but for simple use cases it does not matter  
         TODO: we will combine text fields into one that we use for the VStore - at the moment its assumed that there is at least a text field which is typical enough for schema.org
         """
@@ -335,3 +450,27 @@ class SchemaOrgVectorEntity(AbstractVectorStoreEntry):
 
         #
         return create_model(name, **fields, __module__=namespace, __base__=cls)
+
+
+class FPActorDetails(AbstractVectorStoreEntry):
+    """
+    stores context about the user or users.
+    We can use this as one of our built-ins to understand specific people (us and the people we care about)
+
+    Would be interesting to run "enrich" on this to add more data
+    """
+
+    # enum
+    role: str = "Human"
+    username: Optional[str] = None
+    event_date: Optional[str] = None
+    category: typing.Optional[str] = "General"
+
+    @model_validator(mode="before")
+    def validate_attributes(cls, values):
+        if not values.get("username"):
+            values["username"] = funkyprompt.getuser()
+        if not values.get("event_date"):
+            values["event_date"] = funkyprompt.utc_now_str()
+
+        return values
