@@ -24,7 +24,7 @@
 ## Tutorials
 
 * [1. Ingesting data into a new instance](tutorials/1.-ingesting-data-into-a-new-instance.md)
-* [5. Working with embeddings](tutorials/5.-working-with-embeddings.md)
+* [5. Working with vector searches and embeddings](tutorials/5.-working-with-vector-searches-and-embeddings.md)
 
 ***
 

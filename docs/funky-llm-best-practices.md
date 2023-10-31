@@ -17,3 +17,7 @@ Example:
 Its tempting to try to create one big super prompt but try to resit the urge. Add context gradually and test paths.&#x20;
 
 Example:&#x20;
+
+**3 Data Stores should accept plural questions from the LLM and do parallel searches and synthesize results**
+
+Example

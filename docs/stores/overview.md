@@ -31,7 +31,7 @@ store = VectorDataStore._load_vector_store('FoodyGuides')
 store.load()
 ```
 
-<figure><img src="../.gitbook/assets/image.png" alt=""><figcaption><p>load will load a dataframe so you can preview the data</p></figcaption></figure>
+<figure><img src="../.gitbook/assets/image (2).png" alt=""><figcaption><p>load will load a dataframe so you can preview the data</p></figcaption></figure>
 
 You can load the data from store from the default namespace or you can query it as shown below - this embeds a text string and optionally allows filtering by columns making hybrid search easy.
 
