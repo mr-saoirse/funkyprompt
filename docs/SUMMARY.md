@@ -16,6 +16,7 @@
 ## Stores
 
 * [Overview](stores/overview.md)
+* [Pydantic types in funkyprompt](stores/pydantic-types-in-funkyprompt.md)
 
 ## Auditing
 
@@ -24,6 +25,7 @@
 ## Tutorials
 
 * [1. Ingesting data into a new instance](tutorials/1.-ingesting-data-into-a-new-instance.md)
+* [2 Creating functions over stores](tutorials/2-creating-functions-over-stores.md)
 * [5. Working with vector searches and embeddings](tutorials/5.-working-with-vector-searches-and-embeddings.md)
 
 ***
