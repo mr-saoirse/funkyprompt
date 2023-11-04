@@ -112,7 +112,8 @@ def write(uri, data: typing.Union[pl.DataFrame, typing.List[dict]]):
         with fs.open(uri, "wb") as f:
             fn(f)
     else:
-        # we never really do this because we are always floating in the cloud
+        # create director
+        Path(uri).parent.mkdir(exist_ok=True, parents=True)
         fn(uri)
 
     return read_dataset(uri)

@@ -3,6 +3,7 @@ from funkyprompt.ops.entities import (
     AbstractVectorStoreEntry,
     SchemaOrgVectorEntity,
     FPActorDetails,
+    typing,
 )
 
 
@@ -40,7 +41,9 @@ def get_recipes(what_to_cook: str):
         returns detailed detailed long-form recipe / instructions
 
     """
-    vs = VectorDataStore(AbstractVectorStoreEntry.create_model("Recipe"))
+    vs = VectorDataStore(
+        AbstractVectorStoreEntry.create_model("Recipe", namespace="default")
+    )
     return vs(what_to_cook)
 
 
@@ -55,7 +58,9 @@ def get_recipes_with_ratings(what_to_cook: str, min_rating: int = 4.5):
         returns detailed long-form textual recipe and ratings
 
     """
-    vs = VectorDataStore(AbstractVectorStoreEntry.create_model("Recipe"))
+    vs = VectorDataStore(
+        AbstractVectorStoreEntry.create_model("Recipe", namespace="default")
+    )
     return vs(what_to_cook)
 
 
@@ -72,7 +77,9 @@ def get_restaurant_reviews(name_or_type_of_place_preferred: str, location: str =
 
     """
 
-    vs = VectorDataStore(AbstractVectorStoreEntry.create_model("Review"))
+    vs = VectorDataStore(
+        AbstractVectorStoreEntry.create_model("Review", namespace="default")
+    )
     return vs(name_or_type_of_place_preferred)
 
 
@@ -92,11 +99,13 @@ def get_restaurant_reviews_other(
 
     """
 
-    vs = VectorDataStore(AbstractVectorStoreEntry.create_model("Review"))
+    vs = VectorDataStore(
+        AbstractVectorStoreEntry.create_model("Review", namespace="default")
+    )
     return vs(name_or_type_of_place_preferred)
 
 
-def get_new_your_food_scene_guides(name_or_type_of_place_preferred: str):
+def get_new_york_food_scene_guides(name_or_type_of_place_preferred: str):
     """
     Provides information on whats new and interesting in the New York food and drink scene
 
@@ -108,7 +117,9 @@ def get_new_your_food_scene_guides(name_or_type_of_place_preferred: str):
 
     """
 
-    vs = VectorDataStore(AbstractVectorStoreEntry.create_model("Guides"))
+    vs = VectorDataStore(
+        AbstractVectorStoreEntry.create_model("Guides", namespace="default")
+    )
     return vs(name_or_type_of_place_preferred)
 
 
@@ -128,7 +139,24 @@ def get_context(ask_about_context_required: str):
     return vs(ask_about_context_required)
 
 
-# store("The Story of the creation of the Clock")
+def get_recent_questions_asked(ask_about_context_required: str):
+    """
+    Provides general high level context about the domain or user of the system
+
+    **Args**
+        ask_about_context_required: ask a question to get more details / context
+
+    **Returns**
+        returns additional context
+
+    """
+
+    vs = VectorDataStore(
+        AbstractVectorStoreEntry.create_model("InterpreterSession", namespace="agent")
+    )
+    return vs(ask_about_context_required)
+
+
 def get_story_longitude_clock(ask_about_context_required: str):
     """
     Provides details about the invention of the clock, longitude and discovery
@@ -146,5 +174,29 @@ def get_story_longitude_clock(ask_about_context_required: str):
     # )
     # agent("Where is Harrisons last clock located today?", describe_function(get_story_longitude_clock))
 
-    vs = VectorDataStore(AbstractVectorStoreEntry.create_model("BookChapters"))
+    vs = VectorDataStore(
+        AbstractVectorStoreEntry.create_model("BookChapters", namespace="default")
+    )
     return vs(ask_about_context_required)
+
+
+def run_vector_store_search(
+    question_list: typing.List[str], store_name: str, limit: int = 5
+):
+    """call the run_search method passing questions, limit and store name
+    Example:
+        run_vector_store_search(question_list,limit=5, store_name='default.my_store')
+
+
+    **Args**
+        question_list A list of one or more questions to ask the store
+        store_name (str): tje particular store you want to use
+        limit (int, optional): the number of results to return. Low numbers will fit in the context but higher numbers will be more comprehensive
+    """
+    from funkyprompt.io.stores import list_stores, open_store
+
+    name, namespace = store_name.split(".")
+    for s in list_stores():
+        if s["name"] == name and s["namespace"] == namespace:
+            # TODO caching- store singleton because of slower load times for Instruct
+            return open_store(**s).run_search(queries=question_list, limit=limit)

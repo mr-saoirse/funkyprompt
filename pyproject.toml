@@ -6,6 +6,9 @@ authors = ["mr-saoirse <amartey@gmail.com>"]
 license = "MIT License"
 readme = "README.md"
 
+[tool.poetry.group.dev.dependencies]
+instructembedding = "^0.0.1"
+
 [tool.poetry-dynamic-versioning]
 enable = true
 vcs = "git"

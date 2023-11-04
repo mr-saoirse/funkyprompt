@@ -32,21 +32,22 @@ def load_type(namespace, entity_name):
     return getattr(__import__(module, fromlist=[entity_name]), entity_name)
 
 
-def map_pyarrow_type_info(field_type):
+def map_pyarrow_type_info(field_type, name=None):
     """
     Load not only the type but extra type metadata from pyarrow that we use in Pydantic type
     """
-    t = map_pyarrow_type(field_type)
+    t = map_pyarrow_type(field_type, name=name)
     d = {"type": t}
     if pa.types.is_fixed_size_list(field_type):
         d["fixed_size_length"] = field_type.list_size
     return d
 
 
-def map_pyarrow_type(field_type):
+def map_pyarrow_type(field_type, name=None):
     """
     basic mapping between pyarrow types and typing info for some basic types we use in stores
     """
+
     if pa.types.is_fixed_size_list(field_type):
         return typing.List[map_pyarrow_type(field_type.value_type)]
     if pa.types.is_map(field_type):
@@ -54,7 +55,7 @@ def map_pyarrow_type(field_type):
     if pa.types.is_list(field_type):
         return list
     else:
-        if field_type == pa.string():
+        if field_type in [pa.string(), pa.utf8(), pa.large_string()]:
             return str
         if field_type == pa.string():
             return str
@@ -68,28 +69,15 @@ def map_pyarrow_type(field_type):
             return bool
         if field_type in [pa.binary()]:
             return bytes
+        raise NotImplemented(f"We dont handle {field_type} ({name})")
 
 
 def map_field_types_from_pa_schema(schema):
     """
     given a pyarrow schema return type info so we can create the Pydantic Model from the pyarrow table
     """
-    return {field.name: map_pyarrow_type_info(field.type) for field in schema}
 
-
-def pydantic_field_from_field_info(field_info):
-    """
-    We can use a custom field info to map from pyarrow or other places to describe out own conventions
-    if mature a Pydantic Object should be used to describe schema info but for now we are experimenting
-    an example entry is for a fixed length pyarrow type which maps to `Field(float, fixed_sized_list=1536)` for open ai embeddings
-
-    """
-
-    def _Field(fi):
-        t = fi.pop("type")
-        return Field(t, **fi)
-
-    return {k: _Field(v) for k, v in dict(field_info).items()}
+    return {f.name: map_pyarrow_type_info(f.type, f.name) for f in schema}
 
 
 class NpEncoder(json.JSONEncoder):
@@ -128,9 +116,9 @@ class AbstractEntity(BaseModel):
                 return cls.Config.namespace
 
         # TODO: simple convention for now - we can introduce other stuff including config
-
-        parts = cls.__module__.split(".") if getattr(cls, "__module__") else []
-        return parts[-2] if len(parts) > 2 else "default"
+        namespace = cls.__module__.split(".")[-1]
+        # for now we use the default namespace for anything in entities
+        return namespace if namespace != "entities" else "default"
 
     @classmethod
     @property
@@ -195,10 +183,19 @@ class AbstractEntity(BaseModel):
         pass
 
     @classmethod
-    def create_model_from_pyarrow(cls, name, py_arrow_schema, namespace=None, **kwargs):
-        schema_info = map_field_types_from_pa_schema(py_arrow_schema)
-        fields = {k: pydantic_field_from_field_info(v) for k, v in fields.items()}
-        create_model(name, **fields, __module__=namespace, __base__=cls)
+    def create_model_from_pyarrow(
+        cls, name, py_arrow_schema, namespace=None, key_field=None, **kwargs
+    ):
+        def _Field(name, fi):
+            d = dict(fi)
+            t = d.pop("type")
+            # field = Field (t, None, is_key=True) if name == key_field else Field
+            return (t, None)
+
+        namespace = namespace or cls.namespace
+        fields = map_field_types_from_pa_schema(py_arrow_schema)
+        fields = {k: _Field(k, v) for k, v in fields.items()}
+        return create_model(name, **fields, __module__=namespace, __base__=cls)
 
     @classmethod
     def create_model(cls, name, namespace=None, **fields):
@@ -208,7 +205,7 @@ class AbstractEntity(BaseModel):
 
         when we create models we should audit them somewhere in the system because we can later come back and make them
         """
-
+        namespace = namespace or cls.namespace
         return create_model(name, **fields, __module__=namespace, __base__=cls)
 
     @staticmethod
@@ -324,6 +321,9 @@ class AbstractVectorStoreEntry(AbstractEntity):
         default_factory=list,
     )  # lambda: [0.0 for i in range(OPEN_AI_EMBEDDING_VECTOR_LENGTH)]
     id: Optional[str]
+    depth: Optional[int] = 0
+    # node types eg. summaries at depth -1
+    text_node_type: Optional[str] = "FULL"
 
     @model_validator(mode="before")
     def default_ids(cls, values):
@@ -449,6 +449,7 @@ class SchemaOrgVectorEntity(AbstractVectorStoreEntry):
             # we need to add a validator to merge these fields into a text field
 
         #
+        namespace = namespace or cls.namespace
         return create_model(name, **fields, __module__=namespace, __base__=cls)
 
 

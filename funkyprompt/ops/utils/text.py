@@ -17,7 +17,7 @@ class TextNode(BaseModel):
     refs: typing.List[str] = []
 
 
-class TextModel(BaseModel):
+class TextTreeModel(BaseModel):
     """
     How we represent text and text fragments
     """

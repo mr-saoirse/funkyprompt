@@ -52,11 +52,37 @@ app.add_typer(
 @data_app.command("query")
 def query_store(
     query: typing.Optional[str] = typer.Option(None, "--query", "-q"),
+    store: typing.Optional[str] = typer.Option(None, "--store-name", "-n"),
 ):
     """
     run a query against the store
     """
-    pass
+    from funkyprompt.ops.entities import InstructAbstractVectorStoreEntry
+    from funkyprompt.io.stores import VectorDataStore
+
+    # todo proper loader by name - this assumes default namespace and instruct embedding
+    Model = InstructAbstractVectorStoreEntry.create_model(name=store)
+    agent = VectorDataStore(Model).as_agent()
+    result = agent(query)
+    logger.info(result)
+
+
+@agent_app.command("summarize")
+def query_store(
+    question: typing.Optional[str] = typer.Option(
+        "id like a general summary", "--question", "-q"
+    ),
+    file_or_data: typing.Optional[str] = typer.Option(None, "--data", "-d"),
+):
+    """
+    run a query against the store
+    """
+    # check is file or uri - assume uri for now
+    from funkyprompt.io.tools.ingestion import _ingest_web_page
+
+    data = _ingest_web_page(file_or_data)
+    result = agent.summarize(question=question, data=data)
+    logger.info(result)
 
 
 @agent_app.command("interpret")

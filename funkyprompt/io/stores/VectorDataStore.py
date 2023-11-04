@@ -16,11 +16,10 @@ from funkyprompt.ops.entities import AbstractEntity
 from typing import List
 from funkyprompt import logger
 import warnings
-from . import AbstractStore
-from funkyprompt import VECTOR_STORE_ROOT_URI
+from . import AbstractStore, get_embedding_provider
 from tqdm import tqdm
 from funkyprompt.io.clients.lance import LanceDataTable
-from functools import partial
+
 import pandas as pd
 
 DEFAULT_EMBEDDING_PROVIDER = "open-ai"
@@ -42,10 +41,9 @@ def get_embedding_function_for_provider(
     """
 
     if embedding_provider == "instruct":
-        # you needs to have added the dep for Instruct:> pip install InstructorEmbedding
-        from InstructorEmbedding import INSTRUCTOR
-
-        model = INSTRUCTOR("hkunlp/instructor-large")
+        # you need to have added the dep for Instruct:> pip install InstructorEmbedding
+        # we load it from lib level so its a singleton (load times)
+        model = get_embedding_provider(embedding_provider)
 
         def embed(text):
             return model.encode(text)
@@ -211,10 +209,21 @@ class VectorDataStore(AbstractStore):
             if len(df) > 0:
                 df = df[columns + ["_distance"]]
 
-            results.append(df)
+            results.append(df[df["text"].notnull()])
 
         # we re rank to get answers over all questions based on abs distance[:limit]
-        return pd.concat(results).sort_values("_distance").to_dict("records")
+        df = pd.concat(results)
+        if len(df) == 0:
+            # the concept of reroutng
+            logger.debug("advising different strategy")
+            return pd.DataFrame(
+                [
+                    {
+                        "text": "As there were no results here, You should search for a different and more specific function to answer this part of the question"
+                    }
+                ]
+            ).to_dict("records")
+        return df.sort_values("_distance").to_dict("records")
 
     def check_length(self, records, max_text_length=int(1 * 1e4)):
         """
@@ -263,7 +272,7 @@ class VectorDataStore(AbstractStore):
                 return records_with_embeddings
             self._data.upsert_records(records_with_embeddings)
             logger.info(f"Records added to {self._data}")
-        return records_with_embeddings
+            return records_with_embeddings
 
     def load(self):
         """
@@ -298,16 +307,22 @@ class VectorDataStore(AbstractStore):
 
     def plot(cls, plot_type=False, labels="doc_id", questions=None, **kwargs):
         """
-        require umap to be installed
-        pip install umap-learn[plot]
+        Use UMAP to plot the vector stores embeddings. Be carefully to limit size in future
 
-        add kwargs as used in any umpa plot type
+        Example:
+            store = VectorDataStore(InstructAbstractVectorStoreEntry.create_model("BookChapters-open-ai"))
+            store.plot()
+
+        require umap to be installed -
+        ``pip install umap-learn[plot]```
+        see docs for plotting: https://umap-learn.readthedocs.io/en/latest/plotting.html
 
         **Args**
             plot_type: points(default)|connectivity}diagnostic
             labels: use in plotting functions to add legend
             questions: add questions into the space as separate docs
-            kwargs: any parameter of the selected plotting
+            kwargs: any parameter of the selected plotting - see UMAP docs
+
         """
         import numpy as np
         import umap
@@ -338,6 +353,7 @@ class VectorDataStore(AbstractStore):
         logger.debug(f"Fitting data...")
         F = umap.UMAP().fit(v)
         if plot_type == "connectivity":
+            # edge_bundling='hammer'
             umap.plot.connectivity(F, labels=df[labels], **kwargs)
         elif plot_type == "diagnostic":
             diagnostic_type = kwargs.get("diagnostic_type", "pca")
@@ -364,4 +380,8 @@ class VectorDataStore(AbstractStore):
             umap.plot.show(p)
         else:
             umap.plot.points(F, labels=df[labels], **kwargs)
+
+        return df.hstack(
+            pl.DataFrame(F.embedding_, schema={"x": pl.Float32, "y": pl.Float32})
+        )
         return F

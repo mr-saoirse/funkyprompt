@@ -37,7 +37,7 @@ class AbstractStore:
 
         context = (
             context
-            or f"Provides context about {cls._entity_name} - ask your full question"
+            or f"Provides context about {cls._entity_name} - ask your full question."
         )
 
         return describe_function(cls.run_search, augment_description=context)

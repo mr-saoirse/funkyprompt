@@ -1,4 +1,4 @@
-from funkyprompt.io.tools import downloader, fs
+from funkyprompt.io.tools import fs, ingestion
 from funkyprompt import agent
 
 # re-prompt
@@ -11,7 +11,7 @@ def generate_type_sample(
     this is an experiment in calling file save functions
 
     """
-    data = downloader.get_page_json_ld_data(source_uri)
+    data = ingestion.get_page_json_ld_data(source_uri)
 
     # A standard way to ask for types from samples on the web
     # override if you want to experiment

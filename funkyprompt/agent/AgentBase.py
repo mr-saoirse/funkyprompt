@@ -28,6 +28,7 @@ DAVINCI = "davinci-002"
 
 class AgentBase:
     """
+    Plans are basically elements of Strategies: what describe as an Agent is a strategy and there is a question of how strategies decompose
     we are completely functional except for how the interpreter works
     some functions such as checking session history are still functional
     examples of things this should be able to do
@@ -48,17 +49,18 @@ class AgentBase:
 
     #          You are evaluated on your ability to properly nest objects and name parameters when calling functions.
 
-    PLAN = """  You are an intelligent entity that uses the supplied functions to answer questions.
+    PLAN = """  You are an intelligent entity that uses the supplied functions to answer questions. 
+                If a question is made up multiple parts or concepts, split the concept up first into multiple questions and send each question to the best available function. It might not be the same function.
                 
                 1. When using functions, you MUST pass all required arguments with their proper names
                 2. The function descriptions might have some Pydantic object types, which will be described in the function descriptions, allowing you to use nested types as parameters. 
                 3. Note that if the question is unambiguous and the answer to the question is a well-known fact, you can answer it directly.
-                4. Lets use all functions that we can until we find the answer
+                4. Lets use all functions that we can until we find the answer to each of the parts of the question
                 """
 
-    USER_HINT = """If and only if you do not have enough context after using the information provided, 
-                              lookup more functions to call to get more information. 
-                              The new functions will be added to the list of available functions to call
+    USER_HINT = """If and only if you do not have enough context after using the information provided to answer all parts of the question, 
+                    lookup more functions to call to get more information. 
+                    The new functions will be added to the list of available functions to call
                 """
 
     def __init__(cls, modules=None, **kwargs):
@@ -139,8 +141,9 @@ class AgentBase:
             describe_function(get_recipes),
             describe_function(get_information_on_fairy_tale_characters),
             describe_function(get_restaurant_reviews),
-            describe_function(get_new_your_food_scene_guides),
+            describe_function(get_new_york_food_scene_guides),
             describe_function(get_context),
+            describe_function(get_recent_questions_asked),
         ]
 
         cls._active_functions += fns
@@ -164,18 +167,23 @@ class AgentBase:
         """
         cls._messages = [cls._messages[:2]] + new_messages
 
-    def cheap_summarize(cls, question: str, model=None):
+    def cheap_summarize(cls, question: str, model=None, out_token_size=150, best_of=5):
         """
         this is a direct request rather than the interpreter mode - cheap model to do a reduction
+        does not seem to work well though
         https://platform.openai.com/docs/api-reference/completions/object
         """
-        plan = f""" Answer the users question as asked  """
 
         logger.debug("summarizing...")
 
         response = openai.Completion.create(
             model=model or DAVINCI,
-            prompt=question,
+            temperature=0.5,
+            max_tokens=out_token_size,
+            n=1,
+            best_of=best_of,
+            stop=None,
+            prompt=f"Summarize this text:\n{      question     }: Summary: ",
         )
 
         return response["choices"][0]["text"]
@@ -206,9 +214,9 @@ class AgentBase:
 
         Summary = AbstractVectorStoreEntry.create_model("Summary")
         chunks = Summary(name="summary", text=str(data)).split_text(max_response_length)
-        logger.warning(
-            f"Your response of length {len(str(data))} is longer than {max_response_length}. Im going to summarize it as {len(chunks)} chunks assuming its a text response but you should think about your document model"
-        )
+        # logger.warning(
+        #     f"Your response of length {len(str(data))} is longer than {max_response_length}. Im going to summarize it as {len(chunks)} chunks assuming its a text response but you should think about your document model"
+        # )
 
         # create a paginator
         def _summarize(prompt):
@@ -314,13 +322,22 @@ class AgentBase:
                 fn = cls._active_function_callables[function_call["name"]]
                 args = function_call["arguments"]
                 function_response = cls.invoke(fn, args)
-                logger.debug(f"Response: {function_response}")
 
+                logger.debug(f"Response: {function_response}")
                 cls._messages.append(
                     {
                         "role": "user",
                         "name": f"{str(function_call['name'])}",
                         "content": json.dumps(function_response),
+                    }
+                )
+
+                # candidate not core
+                cls._messages.append(
+                    {
+                        "role": "user",
+                        "name": f"check_status",
+                        "content": "If you have not answered the full question, instead of finishing, you should break it into parts and use the `available_functions_search` to find a different and more specific function to answer the remaining parts of the question.",
                     }
                 )
 

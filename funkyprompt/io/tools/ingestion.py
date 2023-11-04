@@ -5,6 +5,11 @@ from bs4 import BeautifulSoup
 import requests
 import json
 import itertools
+import polars as pl
+
+DEFAULT_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36"
+}
 
 
 def iter_doc_pages(file, **kwargs):
@@ -42,11 +47,25 @@ def iter_doc_pages(file, **kwargs):
 
 
 def ingest_pdf(name, file, embedding_provider="open-ai", doc_id=None):
+    """
+    To ingest a pdf choose an embedding, a file and name of the store to add it to.
+    It is advisable to pick a doc id to group sections by but can be the pdf file name
+
+    **Args**
+        name: the name of the store
+        file: the name of the pdf (full path)
+        embedding_provider: the embedding to use (must map what is already in store for non empty store) open-ai|instruct
+        doc_id: a section or book name
+    """
     from funkyprompt.io.stores import VectorDataStore
     from funkyprompt.ops.entities import (
         AbstractVectorStoreEntry,
         InstructAbstractVectorStoreEntry,
     )
+
+    if doc_id is None:
+        # default id
+        doc_id = file.split("/")[-1].split(".")[0].replace(" ", "_")
 
     # pdf ingestion use case - provide model
     Factory = (
@@ -64,6 +83,43 @@ def ingest_pdf(name, file, embedding_provider="open-ai", doc_id=None):
         records.append(record)
 
     store.add(records)
+
+
+def ingest_pdf_using_instruct_embedding(name, file):
+    """
+    ingest with a instruct embedding using conventional
+
+    **Args**
+        name: the name of the store - will be suffixed with -instruct with this utility method
+        file: pdf file to ingest
+    """
+    return ingest_pdf(name=f"{name}-instruct", file=file, embedding_provider="instruct")
+
+
+def ingest_arrow(name, file, key_field, embedding_provider="open-ai"):
+    """
+    ingest anything that polars can read into arrow format
+    we consider a future embedding in column stores but not used now
+
+    **Args**:
+        name: the name of the store to ingest into - unlike vector stores its 1:1 with the schema of the data
+        file: the file to ingest from
+        key_field: the primary key field for the schema (required for merging datasets)
+        embedding_provider: currently not implemented
+
+    **Returns**
+        a VectorDataStore constructed from the model `name`
+
+    """
+    from funkyprompt.io.stores import ColumnarDataStore
+    from funkyprompt.ops.entities import AbstractEntity
+
+    data = pl.read_csv(file)
+    Model = AbstractEntity.create_model_from_pyarrow(name, data.to_arrow().schema)
+    records = [Model(**d) for d in data.to_dicts()]
+    store = ColumnarDataStore(Model)
+    store.add(records, key_field=key_field)
+    return store
 
 
 def get_page_json_ld_data(url: str) -> dict:
@@ -123,7 +179,7 @@ def site_map_from_sample_url(url, first=True):
 
 def iterate_types_from_headed_paragraphs(
     url: str,
-    entity_type: funkyprompt.ops.entities.AbstractVectorStoreEntry,
+    entity_type: funkyprompt.ops.entities.AbstractVectorStoreEntry = funkyprompt.ops.entities.AbstractVectorStoreEntry,
     name: str = None,
     namespace: str = None,
 ):
@@ -150,27 +206,78 @@ def iterate_types_from_headed_paragraphs(
         namespace : optional namespace to route. by default the entity type namespace is sed
     """
 
-    page = requests.get(url=url)
+    page = requests.get(url=url, headers=DEFAULT_HEADERS)
     soup = BeautifulSoup(page.content, "html.parser")
     elements = soup.find_all(lambda tag: tag.name in ["h2", "p"])
 
-    current = None
-    store_index = 0
-    part_index = 0
-    for element in elements:
-        # track header and decide what to do
-        if element.name == "h2":
-            if "]" in element.text:
-                name = element.text.split("]")[-1]
+    if not elements:
+        # fallback - crude
+        element = soup.find_all(lambda tag: tag.name in ["body"])
+        for body in element:
+            ft = entity_type(name=url, text=body.text, doc_id=url)
+            yield ft
+    else:
+        current = "general"
+        store_index = 0
+        part_index = 0
+        for element in elements:
+            # track header and decide what to do
+            if element.name == "h2":
+                # check this conditions - wikipediaesque
+                name = element.text.split("[")[0]
                 current = name
                 store_index += 1
                 part_index = 0
-        elif current and element.text:
-            part_index += 1
-            key = name.replace(" ", "-") + "-" + str(part_index)
-            if len(element.text) > 50:
-                ft = entity_type(name=key, text=element.text)
-                yield ft
+            elif current and element.text:
+                part_index += 1
+                key = name.replace(" ", "-") + "-" + str(part_index)
+                if len(element.text) > 20:
+                    ft = entity_type(name=key, text=element.text, doc_id=name)
+                    yield ft
+
+
+def _ingest_web_page(url):
+    """
+    experimental simple page summarizer helper - dumb concatenation into max length
+    """
+
+    def concatenate_texts(texts, max_length=1e5):
+        result = []
+        current_text = ""
+        for text in texts:
+            if len(current_text) + len(text) + 1 <= max_length:
+                if current_text:
+                    current_text += " "
+                current_text += text
+            else:
+                result.append(current_text)
+                current_text = text
+        if current_text:
+            result.append(current_text)
+
+        return result
+
+    parts = [
+        p.text
+        for p in iterate_types_from_headed_paragraphs(url, name=url.split(":")[-1])
+    ]
+    parts = concatenate_texts(parts)
+    return parts
+
+
+def ingest_page_to_model(url, model_name):
+    from funkyprompt.io.stores import VectorDataStore
+    from funkyprompt.ops.entities import InstructAbstractVectorStoreEntry
+
+    data = _ingest_web_page(url)
+    Model = InstructAbstractVectorStoreEntry.create_model(model_name)
+    store = VectorDataStore(Model)
+    records = []
+    for i, record in enumerate(data):
+        record = Model(name=f"{url}_{i}", text=record, doc_id=url)
+        records.append(record)
+    store.add(records)
+    return store
 
 
 class SimpleJsonLDSpider:
@@ -198,13 +305,23 @@ class SimpleJsonLDSpider:
 
     """
 
-    def __init__(self, site, prefix_filter, max_depth=7, model=None):
-        self._site_map = f"{site}/sitemap.xml"
+    def __init__(
+        self,
+        site,
+        prefix_filter=None,
+        max_depth=7,
+        model=None,
+        fetch_pages=False,
+        site_map_suffix="sitemap.xml",
+    ):
+        self._site_map = f"{site}/{site_map_suffix}"
         self._domain = site
         self._preview_filter = prefix_filter
         self._max_depth = max_depth
         self._visited = []
         self._model = model
+        self._fetch_pages = fetch_pages
+        self._found = []
         # temp
         self._headers = {
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36"
@@ -215,6 +332,10 @@ class SimpleJsonLDSpider:
         if resp.status_code != 200:
             logger.warning(f"Failed to load {resp.status_code}")
         return resp.text
+
+    def __iter__(self):
+        for page in self.iterate_pages():
+            yield page
 
     def iterate_pages(self, limit=None):
         for i, page in enumerate(self.find(self._site_map)):
@@ -236,13 +357,18 @@ class SimpleJsonLDSpider:
             response = requests.get(sitemap_url, headers=self._headers)
 
             if response.status_code == 200:
-                logger.debug(f"Visited {sitemap_url}")
-                soup = BeautifulSoup(response.text, "xml")
-                urls = [
-                    loc.text
-                    for loc in soup.find_all("loc")
-                    if sitemap_test or lame_file_test(loc.text)
-                ]
+                logger.debug(f"Received response from {sitemap_url}")
+
+                if ".xml" in sitemap_url:
+                    soup = BeautifulSoup(response.text, "xml")
+                    urls = [
+                        loc.text
+                        for loc in soup.find_all("loc")
+                        if sitemap_test or lame_file_test(loc.text)
+                    ]
+                else:
+                    # we are going to jump straight as though we things its a page of links e.g. index.html
+                    urls = [sitemap_url]
 
                 # now we look deeper into sitemaps
                 for url in urls:
@@ -250,11 +376,11 @@ class SimpleJsonLDSpider:
                         for f in self.find(url):
                             yield f
                     else:
-                        for recipe in self.try_json_ld(
+                        for data in self.try_json_ld(
                             url,
                             depth=depth,
                         ):
-                            yield recipe
+                            yield data
             else:
                 logger.warning(f"{response.text} >> not hitting {response.status_code}")
                 for page in self.try_json_ld(
@@ -268,6 +394,7 @@ class SimpleJsonLDSpider:
         """
         the model is either a Pydantic object or another factor that calls a Pydantic object
         """
+
         return d if self._model is None else self._model(**d)
 
     def try_json_ld(self, url, depth):
@@ -278,25 +405,25 @@ class SimpleJsonLDSpider:
         if (
             not urlparse(url).port
             and self._domain in url
-            and self._preview_filter in url
+            and (self._preview_filter or url) in url
         ):
             """
             If there is any JSON+LD (we dont care what) then retrieve it
             """
-
-            data = BeautifulSoup(requests.get(url).text, "html.parser").find(
-                "script", {"type": "application/ld+json"}
-            )
+            text = BeautifulSoup(requests.get(url).text, "html.parser")
+            data = text.find("script", {"type": "application/ld+json"})
 
             if data:
                 data = json.loads("".join(data.contents))
                 # returns the model if provided otherwise the raw
-                logger.debug(f"Found {url}")
+                logger.debug(f"Found {url} ")
+                self._found.append(url)
                 if isinstance(data, list):
                     for d in data:
                         yield url, self.as_model(d)
                 else:
                     yield url, self.as_model(data)
+
             else:
                 # treat as links
                 response = requests.get(url, headers=self._headers)
@@ -318,6 +445,31 @@ class SimpleJsonLDSpider:
                                 #     time.sleep(5)
                                 for page in self.try_json_ld(absolute_url, depth - 1):
                                     yield page
+
+
+def simple_scrape_links(url):
+    """
+    url = 'http://www.paulgraham.com/articles.html'
+
+    Example:
+
+    Model = InstructAbstractVectorStoreEntry.create_model('PaulGraham')
+
+    records = []
+    for url,i,text in simple_scrape_links('http://www.paulgraham.com/articles.html'):
+        record = Model(name=f"{url}_{i}", doc_id=url, text=text)
+        records.append(record)
+    len(records)
+    """
+
+    page = requests.get(url=url, headers=DEFAULT_HEADERS)
+    soup = BeautifulSoup(page.content, "html.parser")
+    elements = soup.find_all("a", href=True)
+    urls = [urljoin(url, tag["href"]) for tag in elements]
+
+    for url in urls:
+        for i, part in enumerate(_ingest_web_page(url)):
+            yield url, i, part
 
 
 """
@@ -361,3 +513,42 @@ def load_example_foody_guides(
 
     # return a sample
     return recs[0]
+
+
+def ingest_site(
+    name: str, domain: str, site_map_or_index: str, prefix_filter: str = None
+):
+    """
+    without doing anything to complex, creating small snippets for use cases and will refactor later
+    my switch to use other libraries but do not want to add too many deps in the short term
+
+    **Args**
+        name: the store to add the data to - can be specific to the site, category or very generic
+        domain: the .com etc website to fetch from
+        site_map_or_index: a link to site map or index to scrape links from
+        prefix_filter: for example /blogs/ /recipes/ or something specific we are interested in
+    """
+    from funkyprompt.ops.entities import InstructAbstractVectorStoreEntry
+    from funkyprompt.io.stores import VectorDataStore
+
+    # this is a misnomer at the moment - json is a special case - we should use it if its useful
+    s = SimpleJsonLDSpider(
+        domain,
+        prefix_filter=prefix_filter,
+        site_map_suffix=site_map_or_index,
+        fetch_pages=True,
+    )
+    for page in s:
+        # for now we will use the found collection
+        pass
+
+    Model = InstructAbstractVectorStoreEntry.create_model(name=name)
+    records = []
+    for url in s._found:
+        for i, p in enumerate(_ingest_web_page(url)):
+            record = Model(name=f"{url}_{i}", text=p, doc_id=url)
+            records.append(record)
+
+    store = VectorDataStore(Model)
+    store.add(records)
+    return store

@@ -13,6 +13,7 @@ import pkgutil
 import sys
 from funkyprompt import logger
 from enum import Enum
+import funkyprompt
 
 # unless told otherwise
 DEFAULT_MODULE_ROOT = "funkyprompt.ops.examples"
@@ -199,6 +200,8 @@ def list_function_signatures(module, str_rep=True):
     """
     the describe the signatures of the methods in the module
     """
+    if module == None:
+        module = funkyprompt.ops.examples
     stringify = lambda s: re.findall(r"\((.*?)\)", str(s))[0]
     members = inspect.getmembers(module)
     functions = [member for member in members if inspect.isfunction(member[1])]
@@ -206,6 +209,22 @@ def list_function_signatures(module, str_rep=True):
     if str_rep:
         return [f"{k}({stringify(v)})" for k, v in function_signatures.items()]
     return function_signatures
+
+
+def list_functions(module=None, description=True):
+    """
+    the describe the signatures of the methods in the module
+    """
+    if module == None:
+        module = funkyprompt.ops.examples
+    members = inspect.getmembers(module)
+    functions = [member for member in members if inspect.isfunction(member[1])]
+
+    if description:
+        # because its a tuple we fetch the function to describe
+        return [describe_function(f[-1]) for f in functions]
+
+    return functions
 
 
 def _get_module_callables(name, module_root="funkyprompt.ops.examples"):

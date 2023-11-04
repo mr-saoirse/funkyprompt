@@ -3,7 +3,7 @@ from funkyprompt.io.clients.duck import DuckDBClient
 from . import AbstractStore
 from funkyprompt import logger, COLUMNAR_STORE_ROOT_URI
 from funkyprompt.io.tools import fs
-from funkyprompt import agent
+import funkyprompt
 
 
 class ColumnarDataStore(AbstractStore):
@@ -42,7 +42,7 @@ class ColumnarDataStore(AbstractStore):
         data = self.query(f"SELECT * FROM {self._entity_name} LIMIT {limit}").to_dicts()
         return [self._entity(**d) for d in data]
 
-    def add(self, records: typing.List[AbstractEntity], mode="merge"):
+    def add(self, records: typing.List[AbstractEntity], mode="merge", key_field=None):
         """
         Add the fields configured on the Pydantic type that are columnar - defaults all
         These are merged into parquet files on some path in the case of this tool
@@ -50,12 +50,14 @@ class ColumnarDataStore(AbstractStore):
         if records and not isinstance(records, list):
             records = [records]
 
+        merge_key = key_field or self._key_field
+
         if len(records):
             logger.info(f"Writing {self._table_path}. {len(records)} records.")
             if mode == "merge":
-                logger.info(f" Merge will be on key[{self._key_field}]")
+                logger.info(f" Merge will be on key[{merge_key}]")
             return (
-                fs.merge(self._table_path, records, key=self._key_field)
+                fs.merge(self._table_path, records, key=merge_key)
                 if mode != "overwrite"
                 else fs.write(self._table_path, records)
             )
@@ -63,12 +65,21 @@ class ColumnarDataStore(AbstractStore):
 
     def run_search(
         self,
-        question,
-        return_type="dict",
-        build_enums=True,
-        limit_table_rows=200,
-        llm_model="gpt-4",
+        question: str,
+        limit: int = 200,
     ):
+        """
+        Perform the columnar data search for the queries directly on the store. This store is used for answering questions of a statistical nature about the entity.
+
+        **Args**
+            question: supply a question about data in the store
+            limit: limit the number of data rows returned - this is to stay with context window but defaults can be trusted in most cases
+        """
+
+        # may make these class property of the store. the search method should be something an LLM can use
+        return_type = "dict"
+        build_enums = True
+
         def parse_out_sql_and_try_clean(s):
             if "```" in s:
                 s = s.split("```")[1].replace("sql", "").strip("\n")
@@ -81,14 +92,14 @@ class ColumnarDataStore(AbstractStore):
             Question: {question} """
 
         logger.debug(prompt)
-        query = agent.ask(prompt)
+        query = funkyprompt.agent.ask(prompt)
         query = query.replace("TABLE", f"'{self._table_path}'")
         try:
             query = parse_out_sql_and_try_clean(query)
             logger.debug(query)
             data = self._db.execute(query)
-            if limit_table_rows:
-                data = data[:limit_table_rows]
+            if limit:
+                data = data[:limit]
             if return_type == "dict":
                 return data.to_dicts()
             return data
