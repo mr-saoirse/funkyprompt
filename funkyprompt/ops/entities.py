@@ -12,6 +12,7 @@ import funkyprompt
 import pyarrow as pa
 import datetime
 import re
+import datetime
 
 # When we are mature we would store configuration like this somewhere more central
 INSTRUCT_EMBEDDING_VECTOR_LENGTH = 768
@@ -69,7 +70,9 @@ def map_pyarrow_type(field_type, name=None):
             return bool
         if field_type in [pa.binary()]:
             return bytes
-        raise NotImplemented(f"We dont handle {field_type} ({name})")
+        if pa.types.is_timestamp(field_type):
+            return datetime.datetime
+        raise NotImplementedError(f"We dont handle {field_type} ({name})")
 
 
 def map_field_types_from_pa_schema(schema):
@@ -350,6 +353,15 @@ class AbstractVectorStoreEntry(AbstractEntity):
             ]
         ]
 
+    @classmethod
+    def as_store(cls):
+        """
+        because stores are determined by types alone, we can construct stores this way
+        """
+        from funkyprompt.io.stores import VectorDataStore
+
+        return VectorDataStore(cls)
+
 
 class InstructAbstractVectorStoreEntry(AbstractVectorStoreEntry):
     class Config:
@@ -475,3 +487,41 @@ class FPActorDetails(AbstractVectorStoreEntry):
             values["event_date"] = funkyprompt.utc_now_str()
 
         return values
+
+
+#explore what the LanceDub type does for me
+#the idea of a global registry of embeddings that we can load in the type?        
+class AbstractContent(AbstractEntity):
+    """
+    the schema of a type that we ingest
+    the schema defines a store but the store will also have a name and namespace
+    normally we subclass this and create a named type / possibly dynamically
+    
+    It might be useful to have a config only on the type - we need to have a vector store descriptor 
+    - search-mode 
+    - specificity
+    - scope
+    - contemporaneousness 
+    """
+    #the key unless override with is-key
+    name: str
+    #the uri or text to embed
+    content: str
+    #the default embedded vector
+    vector: Optional[List[float]] = Field(
+        embedding_provider='open-ai'
+        fixed_size_length=OPEN_AI_EMBEDDING_VECTOR_LENGTH,
+        default_factory=list,
+    )
+    category: str = None
+    depth int: = 0
+    timestamp: str
+    #user
+    
+    
+    
+    
+    
+    
+    
+    

@@ -17,7 +17,7 @@ class FairyTales(AbstractVectorStoreEntry):
 
 def get_information_on_fairy_tale_characters(question: str):
     """
-    Provides details about fairy take characters
+    Provides details about fairy tale characters
 
     **Args**
         question: ask a question in sufficient detail
@@ -189,9 +189,9 @@ def run_vector_store_search(
 
 
     **Args**
-        question_list A list of one or more questions to ask the store
-        store_name (str): tje particular store you want to use
-        limit (int, optional): the number of results to return. Low numbers will fit in the context but higher numbers will be more comprehensive
+        question_list: A list of one or more questions to ask the store
+        store_name: tje particular store you want to use
+        limit: the number of results to return. Low numbers will fit in the context but higher numbers will be more comprehensive
     """
     from funkyprompt.io.stores import list_stores, open_store
 

@@ -4,6 +4,24 @@ from funkyprompt import agent
 # re-prompt
 
 
+def make_image(prompt, size=(256, 256)):
+    """ """
+    import openai
+    from PIL import Image
+    import requests
+    from io import BytesIO
+
+    response = openai.Image.create(
+        prompt=prompt,
+        n=1,
+        size=f"{size[0]}x{size[1]}",
+    )
+
+    url = response["data"][0]["url"]
+    response = requests.get(url)
+    return Image.open(BytesIO(response.content))
+
+
 def generate_type_sample(
     source_uri, namespace="default", name=None, prompt=None, save=False
 ):

@@ -29,6 +29,17 @@ class CallableModule(BaseModel):
     options: typing.Optional[dict] = None
 
 
+class FunctionFactory(BaseModel):
+    """
+    this is used to reload functions and partially eval them for different contexts
+    With the function description and factory we can satisfy the LLM interface and also generate functions over stores
+    """
+
+    name: str
+    module: typing.Optional[str] = None
+    partial_args: typing.Optional[dict] = Field(default_factory=dict)
+
+
 class FunctionDescription(BaseModel):
     """
     Typed function details for passing functions to LLMs
@@ -40,6 +51,33 @@ class FunctionDescription(BaseModel):
     raises: typing.Optional[str] = None
     returns: typing.Optional[str] = None
     function: typing.Any = Field(exclude=True)
+    # serialize function ref. we need to load something with partial args
+    factory: typing.Optional[FunctionFactory] = None
+
+    @classmethod
+    def restore(cls, data):
+        """
+        this is a temporary sketch - it would probably make more sense for the ops utils e.g. inspector to allow for restoring function descriptions
+        will refactor as the ideas converge
+        """
+        from funkyprompt.io.stores import open_store
+        from funkyprompt.ops.utils.inspector import load_op
+
+        factory = data["factory"]
+        if factory["name"] == "run_vector_store_search":
+            """
+            Here we assume a certain pattern for the factory
+            """
+            store = factory["partial_args"]["store_name"].split(".")
+            store = {"type": "vector-store", "namespace": store[0], "name": store[1]}
+            store = open_store(
+                **store, embedding_provider=factory["partial_args"]["embedding"]
+            )
+            return store.as_function_description()
+        # implement other store
+        else:
+            # assume its an op
+            return FunctionDescription(load_op(factory["name"]))
 
     def pop_object_types(cls, d):
         """
@@ -95,7 +133,10 @@ def is_pydantic_type(t):
 
 
 def describe_function(
-    function: typing.Callable, add_sys_fields=False, augment_description=None
+    function: typing.Callable,
+    add_sys_fields=False,
+    augment_description=None,
+    factory: FunctionFactory = None,
 ) -> FunctionDescription:
     """
     Used to get the description of the method for use with the LLM
@@ -193,7 +234,7 @@ def describe_function(
         parsed_sections["description"] += f"\n{augment_description}"
     parsed_sections["name"] = function.__name__
 
-    return FunctionDescription(**parsed_sections, function=function)
+    return FunctionDescription(**parsed_sections, function=function, factory=factory)
 
 
 def list_function_signatures(module, str_rep=True):
@@ -311,7 +352,7 @@ def inspect_modules_for_class_types(module=None, type_filter=None):
         del sys.modules[spec.name]
 
 
-def load_op(module, op="handler", default=None):
+def load_op(op, module=None):
     """
     much of this library depends on simple conventions so can be improved
     in this case we MUST be able to find the modules
@@ -320,22 +361,9 @@ def load_op(module, op="handler", default=None):
     or we do more interesting inspection of modules
     """
 
-    def default_handler(event, **kwargs):
-        """
-        this is the default when the module does not provide a handler
-        """
-        logger.info(f"<<<< Proxy handling for {module}.{op} >>>>")
-        logger.info(f"processing {event}, {kwargs}")
-        return {}
+    if module is None:
+        from funkyprompt.ops import examples
 
-    MODULE_ROOT = f"{DEFAULT_MODULE_ROOT}."
-    module = module.replace(MODULE_ROOT, "")
-    module = f"{MODULE_ROOT}{module}"
-    try:
-        logger.debug(f"Loading function {op} from {module}")
-        return getattr(__import__(module, fromlist=[op]), op)
-    except Exception as ex:
-        logger.warning(f"Failed loading function {op} from {module} - {repr(ex)}")
-        if default:
-            return default
-        return default_handler
+        module = examples
+
+    return getattr(module, op)

@@ -53,14 +53,16 @@ def list_stores():
     ]
 
 
-def open_store(name: str, type: str, namespace: str = "default"):
+def open_store(
+    name: str, type: str, namespace: str = "default", embedding_provider="open-ai"
+):
     """
     Convenience to load store by name. the interface is still being worked out
     """
     store = VectorDataStore if type == "vector-store" else ColumnarDataStore
     model = AbstractVectorStoreEntry if type == "vector-store" else AbstractEntity
     # hack
-    if "-instruct" in name:
+    if embedding_provider == "instruct" or "-instruct" in name:
         model = InstructAbstractVectorStoreEntry
     Model = model.create_model(name, namespace=namespace)
     store = store(Model)

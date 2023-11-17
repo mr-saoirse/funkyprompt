@@ -11,6 +11,7 @@ def update_function_index():
     from funkyprompt.io.stores import open_store, list_stores
     from stringcase import titlecase
     from funkyprompt.ops.entities import InstructAbstractVectorStoreEntry
+    from funkyprompt.ops.utils.inspector import list_functions
     import json
 
     stores = [
@@ -20,14 +21,25 @@ def update_function_index():
         for s in list_stores()
     ]
 
-    Model = InstructAbstractVectorStoreEntry.create_model(name="FunctionIndex")
+    Model = InstructAbstractVectorStoreEntry.create_model(name="FunctionIndex-instruct")
 
     records = []
+
+    # add the stores as functions
     for f in stores:
-        record = Model(name=f.name, text=json.dumps(f.function_dict()))
+        record = Model(name=f.name, text=f.model_dump_json())
         records.append(record)
 
-    store = VectorDataStore(Model).add(records)
+    """
+    add the example functions
+    """
+    for f in list_functions(description=True):
+        record = Model(name=f.name, text=f.model_dump_json())
+        records.append(record)
+
+    store = VectorDataStore(Model)
+    store.add(records)
+
     return store
 
 

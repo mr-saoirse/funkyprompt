@@ -17,7 +17,7 @@ from .auditing import InterpreterSession
 # import for now for the loader below
 from funkyprompt.ops.examples import *
 
-DEFAULT_MODEL = "gpt-4"  # has a 32k context or 8k
+DEFAULT_MODEL = "gpt-4-1106-preview"  # "gpt-4"  # has a 32k context or 8k
 GPT3 = "gpt-3.5-turbo"
 GPT3_16k = "gpt-3.5-turbo-16k"
 

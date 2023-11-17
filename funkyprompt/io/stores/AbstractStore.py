@@ -34,13 +34,26 @@ class AbstractStore:
 
     def as_function_description(cls, context=None):
         from funkyprompt import describe_function
+        from funkyprompt.ops.utils.inspector import FunctionFactory
 
         context = (
             context
             or f"Provides context about {cls._entity_name} - ask your full question."
         )
 
-        return describe_function(cls.run_search, augment_description=context)
+        return describe_function(
+            cls.run_search,
+            augment_description=context,
+            # this is a bit lame but doing it for now. we need a proper factory mechanism
+            factory=FunctionFactory(
+                name="run_vector_store_search",
+                partial_args={
+                    "store_name": f"{cls._entity_namespace}.{cls._entity_name}",
+                    # on vector stores we need to know the embedding for now - if the store we loaded with meta data e.g. from type resolution we would not
+                    "embedding": getattr(cls, "_embedding_provider", None),
+                },
+            ),
+        )
 
     def as_agent(cls):
         """

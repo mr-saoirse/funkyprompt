@@ -81,8 +81,14 @@ class LanceDataTable:
         add to the table and remove anything that had the same id
         """
         if len(records):
-            in_list = ",".join([f'"{r[key]}"' for r in records])
-            self._table.delete(f"{key} IN ({in_list})")
+            keys = set(r[key] for r in records)
+            in_list = ",".join([f'"{k}"' for k in keys])
+            try:
+                self._table.delete(f"{key} IN ({in_list})")
+            except:
+                logger.warning(
+                    f"Failed in a delete transaction - this can lead to duplicates"
+                )
 
             return self._table.add(data=records, mode=mode)
         return self.dataset
