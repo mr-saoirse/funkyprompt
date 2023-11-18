@@ -4,7 +4,7 @@ description: The best prompts are no prompts
 
 # Why funkyprompt
 
-The LLM and LLM tool space is noisy so we hesitantly introduce a new yet simple tool into this space. The goal is to focus on _powerful predictability_ when building agent systems. We want to be able to gradually _engineer_ increasingly complex systems without sacrificing determinism as we combine LLMs with our code and data.
+The LLM and LLM tool space is noisy so we hesitantly introduce a new yet simple tool into this space. The goal is to focus on _powerful predictability over federated data_ when building agent systems. We want to be able to gradually _engineer_ increasingly complex systems without sacrificing determinism as we combine LLMs with our code and data.
 
 `funkyprompt` takes the stance that this is done by respecting the interface between (a) the LLM (such as OpenAI chat completions with functions) and (b) everything else i.e. our code.&#x20;
 
