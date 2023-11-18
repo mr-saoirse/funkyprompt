@@ -14,7 +14,7 @@ A note about embedding databases and S3 blob storage:
 
 If you are as excited about embedded (vector) databases as we are, you will love `funkyprompt`
 
-We currently have a columnar data store wrapping [DuckDB](https://duckdb.org/) and a vector store wrapping [LanceDB](https://lancedb.github.io/lancedb/) - see also [lance docs](https://lancedb.github.io/lance/)). Conveniently you can use these locally or with an S3 backend. If you want to use the S3 backend set the env var `FP_STORE_HOME` as described in [install.md](install.md "mention").
+We currently have a columnar data store wrapping [DuckDB](https://duckdb.org/) and a vector store wrapping [LanceDB](https://lancedb.github.io/lancedb/) - see also [lance docs](https://lancedb.github.io/lance/)). Conveniently you can use these locally or with an S3 backend. If you want to use the S3 backend set the env var `FP_STORE_HOME` as described in [install.md](install.md "mention") but most of the tutorials assume you want to run things locally first.
 
 ***
 
