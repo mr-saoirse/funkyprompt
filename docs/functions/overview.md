@@ -34,7 +34,7 @@ class Person(BaseModel):
     team: typing.Optional[str]
 ```
 
-You can use your own functions and describe then as shown below.&#x20;
+You can use your own functions and describe them as shown below.&#x20;
 
 ```python
 from funkyprompt.ops.utils.inspector import describe_function
