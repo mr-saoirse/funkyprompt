@@ -24,25 +24,27 @@ To understand how to use the data stores, lets take a quick tour and then you ca
 
 #### Unstructured data&#x20;
 
-To get started lets just ingestion data from a URL. We will embed the data with the default embedding (see tutorials to choose other embeddings). The CLI is useful for testing but you will want to take a look at the code base e.g. in a Jupyter notebook. We find its nice to be able to just get a feel via the cli.
+To get started lets just ingest data from a URL. We will embed the data with the default embedding (see tutorials to choose other embeddings). The CLI is useful for testing but you will want to take a look at the code e.g. in a Jupyter notebook. We find its nice to be able to just get a feel via the cli.
 
 {% hint style="info" %}
 For this section set an alias to funky prompt called "fp" as described in the installation
 {% endhint %}
 
+{% code overflow="wrap" %}
 ```bash
-fp ingest page --url "" -n fairy-tales
+fp ingest page --url "https://www.gutenberg.org/files/20748/20748-h/20748-h.htm" -n FairyTales
 ```
+{% endcode %}
 
 Give it a moment to read the page and embed it in a vector store table called fairy tales
 
 {% hint style="info" %}
-This will be stored in $`FP_STORE_HOME/stores/vector/default/fairy-tales`
+This will be stored in `$FP_STORE_HOME/stores/vector/default/FairyTales`
 
 `The namespace here is default as it was not specified`
 {% endhint %}
 
-Now that we have ingested the data we can ask questions. The interpret will consult a number of stores by default and can be tuned which will be the topic of another tutorial. In this case we have only one data store so lets not think about it too much
+Now that we have ingested the data we can ask questions. The interpret will consult a number of stores by default and can be tuned, which will be the topic of another tutorial. In this case we have only one data store so lets not think about it too much
 
 ```
 fp agent interpret -q "Who was sinbad and where did he retire?"
@@ -50,7 +52,7 @@ fp agent interpret -q "Who was sinbad and where did he retire?"
 
 **Structured Data**
 
-In one respect, unstructured data is more interesting. This is how we load tonnes of arbitrary text into our systems and let the agent figure it out. However, types play an enormous role in `funkyprompt`  firstly as a way to guide agents and secondly as a way to store columnar data that is used in type systems. Actually even the unstructured data is represented as a Pydantic type called `AbstactVectorStoreEntity` which describes how to embed and store the data in the vector store. However, more generally, we can ingest arbitrary types into our system. Lets consider scraping structured types with some quantitative data from a website in three steps.
+In one respect, unstructured data is more interesting. This is how we load tonnes of arbitrary text into our systems and let the agent figure it out. However, _types_ play an enormous role in `funkyprompt` , firstly as a way to guide agents and secondly as a way to store columnar data that is used in type systems. Actually even the unstructured data is represented as a Pydantic type called `AbstactContentModel` which describes how to embed and store the data in the vector store. However, more generally, we can ingest arbitrary types into our system. Lets consider scraping structured types with some quantitative data from a website in three steps.
 
 _1 Initialize the type with a sample_
 
