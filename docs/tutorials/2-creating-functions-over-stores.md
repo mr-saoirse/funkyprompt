@@ -81,7 +81,11 @@ Below im using a strategy in the agent that explains what it is doing for debugg
 
 {% code overflow="wrap" %}
 ```
-The H-4 clock is currently located in the National Maritime Museum in London. It is on display in an exhibit case but does not run, as the curators have decided not to wind it in order to preserve it for posterity. H-4 could run if wound up, but it would require daily winding, similar to the large sea clocks it is displayed alongside. However, due to its delicate nature and the risk involved in constant handling, as well as the previous experiences of damage during transfers and exhibitions, it has been left stationary to avoid any potential harm.\n\nMy confidence level is high, as the information comes directly from the context provided by books related to the subject.\n\nFor the strategy: I initially used the `search_functions` command to seek out relevant functions that could lead to information on the H-4 clock. After reviewing the functions, I selected `vectordatastore_search_default_bookchapters` since this would likely contain historical or topical information about the H-4 clock. The vector datastore search returned excerpts from texts thadescribe the history and current status of H-4, which informed the answer above.
+The H-4 clock is currently located in the National Maritime Museum in London. It is on display in an exhibit case but does not run, as the curators have decided not to wind it in order to preserve it for posterity. H-4 could run if wound up, but it would require daily winding, similar to the large sea clocks it is displayed alongside. However, due to its delicate nature and the risk involved in constant handling, as well as the previous experiences of damage during transfers and exhibitions, it has been left stationary to avoid any potential harm.
+
+My confidence level is high, as the information comes directly from the context provided by books related to the subject.
+
+For the strategy: I initially used the `search_functions` command to seek out relevant functions that could lead to information on the H-4 clock. After reviewing the functions, I selected `vectordatastore_search_default_bookchapters` since this would likely contain historical or topical information about the H-4 clock. The vector datastore search returned excerpts from texts that describe the history and current status of H-4, which informed the answer above.
 ```
 {% endcode %}
 {% endhint %}
