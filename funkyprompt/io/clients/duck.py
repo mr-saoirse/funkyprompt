@@ -108,6 +108,9 @@ class DuckDBClient:
         enum_types = [c for c in columns if try_unique(c) < enum_threshold]
         return {c: list(df[c].unique()) for c in df.columns if c in enum_types}
 
+    def probe_field_names(self, uri):
+        return list(self.execute(f"SELECT * FROM '{uri}' LIMIT 1").columns)
+
     def execute(self, query):
         """ """
         return self._cursor.execute(query).pl()

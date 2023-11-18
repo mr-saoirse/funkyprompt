@@ -1,92 +1,84 @@
 # for speed reasons only we store them in the module as singleton - you may need to install deps that are not bundled with funkyprompt
 
-EMBEDDINGS = {}
+# EMBEDDINGS = {}
 
 
-def get_embedding_provider(provider):
-    if provider in EMBEDDINGS:
-        return EMBEDDINGS[provider]
-    else:
-        if provider == "instruct":
-            from InstructorEmbedding import INSTRUCTOR
+# def get_embedding_provider(provider):
+#     if provider in EMBEDDINGS:
+#         return EMBEDDINGS[provider]
+#     else:
+#         if provider == "instruct":
+#             from InstructorEmbedding import INSTRUCTOR
 
-            model = INSTRUCTOR("hkunlp/instructor-large")
-            EMBEDDINGS[provider] = model
-            return model
+#             model = INSTRUCTOR("hkunlp/instructor-large")
+#             EMBEDDINGS[provider] = model
+#             return model
 
-
-from funkyprompt.ops.entities import (
-    AbstractEntity,
-    AbstractVectorStoreEntry,
-    InstructAbstractVectorStoreEntry,
-)
+import funkyprompt
+from funkyprompt.model.entity import FunctionRegistryRecord
 from .AbstractStore import AbstractStore
 from .ColumnarDataStore import ColumnarDataStore
-from .VectorDataStore import VectorDataStore
-from funkyprompt import VECTOR_STORE_ROOT_URI, COLUMNAR_STORE_ROOT_URI
-from glob import glob
+from .VectorStoreBase import VectorDataStore
+from .EntityDataStore import EntityDataStore
+import typing
+
+from funkyprompt.model.func import FunctionDescription
 
 
-def insert(entity: AbstractEntity):
-    if isinstance(entity, AbstractVectorStoreEntry):
-        store = VectorDataStore(entity)
-        store.add(entity)
-    if isinstance(entity, AbstractEntity):
-        store = ColumnarDataStore(entity)
-        store.add(entity)
-    else:
-        raise TypeError(
-            f"The entity {entity} must be a subclass of AbstractEntity or implement some interface TBD"
+class FunkyRegistry(VectorDataStore):
+    """
+    Sublcass the base to create a new configuration
+    This registry is used to register functions
+    - vector stores as fucntions
+    - columnar stores as functions
+    - library functions
+    - API calls
+
+    """
+
+    STORE_DIR = "function-registry"
+    DESCRIPTION = "Used to search for different types of stores for vector search, tabular structured date search etc."
+
+    def __init__(cls):
+        Model = FunctionRegistryRecord.create_model(cls.STORE_DIR, namespace="default")
+        super().__init__(model=Model, description=cls.DESCRIPTION, register_store=False)
+
+    def _remove_stores_by_name(cls, stores):
+        """
+        convenience - need to be careful here - its not a proper predicate as it does not consider namespaces
+        """
+        st = f",".join([f"'{s}'" for s in stores])
+        cls._table.delete(f"entity_name in ({st})")
+
+    def register_function(
+        cls, function: typing.Union[typing.Callable, FunctionDescription]
+    ):
+        """
+        upsert the description and components that we use to discover this function
+        """
+
+        # allow passing the function description
+        fd = (
+            funkyprompt.describe_function(function)
+            if not isinstance(function, FunctionDescription)
+            else function
         )
+        namespace = fd.factory.module
+        fq_name = f"functions_{namespace}_{fd.name}".replace(".", "_")
 
-
-def list_stores():
-    return [
-        dict(
-            zip(
-                ["type", "namespace", "name"],
-                [i.split(".")[0] for i in c.split("/")[-3:]],
+        cls.add(
+            FunctionRegistryRecord(
+                name=fq_name,
+                description=fd.description,
+                type="default",
+                entity_name="function_subject_todo",
+                namespace=namespace,
+                # serialized the function description
+                metadata=fd.model_dump_json(),
             )
         )
-        for c in list(glob(f"{VECTOR_STORE_ROOT_URI}/*/*"))
-        + list(glob(f"{COLUMNAR_STORE_ROOT_URI}/*/*"))
-    ]
+        funkyprompt.logger.info(f"Registered {fd.name}")
 
 
-def open_store(
-    name: str, type: str, namespace: str = "default", embedding_provider="open-ai"
-):
-    """
-    Convenience to load store by name. the interface is still being worked out
-    """
-    store = VectorDataStore if type == "vector-store" else ColumnarDataStore
-    model = AbstractVectorStoreEntry if type == "vector-store" else AbstractEntity
-    # hack
-    if embedding_provider == "instruct" or "-instruct" in name:
-        model = InstructAbstractVectorStoreEntry
-    Model = model.create_model(name, namespace=namespace)
-    store = store(Model)
-    return store
-
-
-def get_probe():
-    """
-    convenience method to check if there is any response from stores for a given question
-    """
-    import itertools
-    import pandas as pd
-
-    loaded_stores = [open_store(**s) for s in list_stores()]
-
-    def f(text):
-        def try_res(s, q):
-            try:
-                return s(q, limit=1)
-            except Exception as ex:
-                return {}
-
-        return pd.DataFrame(
-            list(itertools.chain(*[try_res(s, text) for s in loaded_stores]))
-        ).sort_values("_distance")
-
-    return f
+from funkyprompt import VECTOR_STORE_ROOT_URI, COLUMNAR_STORE_ROOT_URI
+from glob import glob

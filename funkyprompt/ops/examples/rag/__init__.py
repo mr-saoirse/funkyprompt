@@ -1,13 +1,13 @@
 from funkyprompt.io.stores import ColumnarDataStore, VectorDataStore
-from funkyprompt.ops.entities import (
-    AbstractVectorStoreEntry,
+from funkyprompt.model.entity import (
+    AbstractContentModel,
     SchemaOrgVectorEntity,
-    FPActorDetails,
+    # FPActorDetails,
     typing,
 )
 
 
-class FairyTales(AbstractVectorStoreEntry):
+class FairyTales(AbstractContentModel):
     """
     url = "https://www.gutenberg.org/files/20748/20748-h/20748-h.htm"
     """
@@ -15,22 +15,24 @@ class FairyTales(AbstractVectorStoreEntry):
     pass
 
 
-def get_information_on_fairy_tale_characters(question: str):
+def get_information_on_fairy_tale_characters(questions: typing.List[str]):
     """
     Provides details about fairy tale characters
 
     **Args**
-        question: ask a question in sufficient detail
+        questions: ask a question in sufficient detail
 
     **Returns**
         returns text detail detailed long-form info related to your question about fairy tale characters
     """
-    vs = VectorDataStore(FairyTales)
+    Model = AbstractContentModel.create_model("FairyTales", namespace="default")
 
-    return vs(question)
+    vs = VectorDataStore(Model, description="")
+
+    return vs(questions)
 
 
-def get_recipes(what_to_cook: str):
+def get_recipes(what_to_cook: typing.List[str]):
     """
     Get recipes for making any food you want. Be as detailed and specific as you can be with your request for best results
 
@@ -42,12 +44,12 @@ def get_recipes(what_to_cook: str):
 
     """
     vs = VectorDataStore(
-        AbstractVectorStoreEntry.create_model("Recipe", namespace="default")
+        AbstractContentModel.create_model("Recipe", namespace="default"), description=""
     )
     return vs(what_to_cook)
 
 
-def get_recipes_with_ratings(what_to_cook: str, min_rating: int = 4.5):
+def get_recipes_with_ratings(what_to_cook: typing.List[str], min_rating: int = 4.5):
     """
     Get recipes with ratings and suitability for making any food you want. Be as detailed and specific as you can be with your request for best results
 
@@ -59,7 +61,7 @@ def get_recipes_with_ratings(what_to_cook: str, min_rating: int = 4.5):
 
     """
     vs = VectorDataStore(
-        AbstractVectorStoreEntry.create_model("Recipe", namespace="default")
+        AbstractContentModel.create_model("Recipe", namespace="default"), description=""
     )
     return vs(what_to_cook)
 
@@ -78,7 +80,7 @@ def get_restaurant_reviews(name_or_type_of_place_preferred: str, location: str =
     """
 
     vs = VectorDataStore(
-        AbstractVectorStoreEntry.create_model("Review", namespace="default")
+        AbstractContentModel.create_model("Review", namespace="default"), description=""
     )
     return vs(name_or_type_of_place_preferred)
 
@@ -100,7 +102,7 @@ def get_restaurant_reviews_other(
     """
 
     vs = VectorDataStore(
-        AbstractVectorStoreEntry.create_model("Review", namespace="default")
+        AbstractContentModel.create_model("Review", namespace="default"), description=""
     )
     return vs(name_or_type_of_place_preferred)
 
@@ -118,25 +120,25 @@ def get_new_york_food_scene_guides(name_or_type_of_place_preferred: str):
     """
 
     vs = VectorDataStore(
-        AbstractVectorStoreEntry.create_model("Guides", namespace="default")
+        AbstractContentModel.create_model("Guides", namespace="default"), description=""
     )
     return vs(name_or_type_of_place_preferred)
 
 
-def get_context(ask_about_context_required: str):
-    """
-    Provides general high level context about the domain or user of the system
+# def get_context(ask_about_context_required: str):
+#     """
+#     Provides general high level context about the domain or user of the system
 
-    **Args**
-        ask_about_context_required: ask a question to get more details / context
+#     **Args**
+#         ask_about_context_required: ask a question to get more details / context
 
-    **Returns**
-        returns additional context
+#     **Returns**
+#         returns additional context
 
-    """
+#     """
 
-    vs = VectorDataStore(FPActorDetails)
-    return vs(ask_about_context_required)
+#     vs = VectorDataStore(FPActorDetails)
+#     return vs(ask_about_context_required)
 
 
 def get_recent_questions_asked(ask_about_context_required: str):
@@ -152,12 +154,13 @@ def get_recent_questions_asked(ask_about_context_required: str):
     """
 
     vs = VectorDataStore(
-        AbstractVectorStoreEntry.create_model("InterpreterSession", namespace="agent")
+        AbstractContentModel.create_model("InterpreterSession", namespace="agent"),
+        description="",
     )
     return vs(ask_about_context_required)
 
 
-def get_story_longitude_clock(ask_about_context_required: str):
+def get_story_longitude_clock(ask_about_context_required: typing.List[str]):
     """
     Provides details about the invention of the clock, longitude and discovery
 
@@ -175,7 +178,8 @@ def get_story_longitude_clock(ask_about_context_required: str):
     # agent("Where is Harrisons last clock located today?", describe_function(get_story_longitude_clock))
 
     vs = VectorDataStore(
-        AbstractVectorStoreEntry.create_model("BookChapters", namespace="default")
+        AbstractContentModel.create_model("BookChapters", namespace="default"),
+        description="",
     )
     return vs(ask_about_context_required)
 

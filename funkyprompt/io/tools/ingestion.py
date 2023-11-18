@@ -6,6 +6,10 @@ import requests
 import json
 import itertools
 import polars as pl
+from funkyprompt.model import AbstractContentModel, InstructEmbeddingContentModel
+from funkyprompt.io.stores import ColumnarDataStore
+from funkyprompt.model import AbstractModel
+from funkyprompt.io.stores import VectorDataStore
 
 DEFAULT_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36"
@@ -57,11 +61,6 @@ def ingest_pdf(name, file, embedding_provider="open-ai", doc_id=None):
         embedding_provider: the embedding to use (must map what is already in store for non empty store) open-ai|instruct
         doc_id: a section or book name
     """
-    from funkyprompt.io.stores import VectorDataStore
-    from funkyprompt.ops.entities import (
-        AbstractVectorStoreEntry,
-        InstructAbstractVectorStoreEntry,
-    )
 
     if doc_id is None:
         # default id
@@ -69,9 +68,9 @@ def ingest_pdf(name, file, embedding_provider="open-ai", doc_id=None):
 
     # pdf ingestion use case - provide model
     Factory = (
-        InstructAbstractVectorStoreEntry
+        InstructEmbeddingContentModel
         if embedding_provider == "instruct"
-        else AbstractVectorStoreEntry
+        else AbstractContentModel
     )
     Model = Factory.create_model(name)
     store = VectorDataStore(Model)
@@ -79,7 +78,7 @@ def ingest_pdf(name, file, embedding_provider="open-ai", doc_id=None):
     records = []
     funkyprompt.logger.debug(f"Reading document")
     for i, page in enumerate(iter_doc_pages(file)):
-        record = Model(name=f"{doc_hash}{i}", text=page, doc_id=doc_id)
+        record = Model(name=f"{doc_hash}{i}", content=page, doc_id=doc_id)
         records.append(record)
 
     store.add(records)
@@ -111,11 +110,9 @@ def ingest_arrow(name, file, key_field, embedding_provider="open-ai"):
         a VectorDataStore constructed from the model `name`
 
     """
-    from funkyprompt.io.stores import ColumnarDataStore
-    from funkyprompt.ops.entities import AbstractEntity
 
     data = pl.read_csv(file)
-    Model = AbstractEntity.create_model_from_pyarrow(name, data.to_arrow().schema)
+    Model = AbstractModel.create_model_from_pyarrow(name, data.to_arrow().schema)
     records = [Model(**d) for d in data.to_dicts()]
     store = ColumnarDataStore(Model)
     store.add(records, key_field=key_field)
@@ -179,9 +176,10 @@ def site_map_from_sample_url(url, first=True):
 
 def iterate_types_from_headed_paragraphs(
     url: str,
-    entity_type: funkyprompt.ops.entities.AbstractVectorStoreEntry = funkyprompt.ops.entities.AbstractVectorStoreEntry,
+    entity_type: AbstractContentModel,
     name: str = None,
     namespace: str = None,
+    min_text_length=10,
 ):
     """This is a simple scraper. Something like Unstructured could be used in future to make this better
 
@@ -214,7 +212,7 @@ def iterate_types_from_headed_paragraphs(
         # fallback - crude
         element = soup.find_all(lambda tag: tag.name in ["body"])
         for body in element:
-            ft = entity_type(name=url, text=body.text, doc_id=url)
+            ft = entity_type(name=url, content=body.text, doc_id=url)
             yield ft
     else:
         current = "general"
@@ -223,16 +221,18 @@ def iterate_types_from_headed_paragraphs(
         for element in elements:
             # track header and decide what to do
             if element.name == "h2":
-                # check this conditions - wikipediaesque
+                # check this conditions - wikipediaesque - just a simple hacky parser
                 name = element.text.split("[")[0]
+                if not len(name):
+                    name = element.text.split("]")[-1]
                 current = name
                 store_index += 1
                 part_index = 0
             elif current and element.text:
                 part_index += 1
                 key = name.replace(" ", "-") + "-" + str(part_index)
-                if len(element.text) > 20:
-                    ft = entity_type(name=key, text=element.text, doc_id=name)
+                if len(element.text) > min_text_length:
+                    ft = entity_type(name=key, content=element.text, doc_id=name)
                     yield ft
 
 
@@ -266,15 +266,12 @@ def _ingest_web_page(url):
 
 
 def ingest_page_to_model(url, model_name):
-    from funkyprompt.io.stores import VectorDataStore
-    from funkyprompt.ops.entities import InstructAbstractVectorStoreEntry
-
     data = _ingest_web_page(url)
-    Model = InstructAbstractVectorStoreEntry.create_model(model_name)
+    Model = InstructEmbeddingContentModel.create_model(model_name)
     store = VectorDataStore(Model)
     records = []
     for i, record in enumerate(data):
-        record = Model(name=f"{url}_{i}", text=record, doc_id=url)
+        record = Model(name=f"{url}_{i}", content=record, doc_id=url)
         records.append(record)
     store.add(records)
     return store
@@ -489,8 +486,7 @@ def load_example_foody_guides(
 
     """
     from funkyprompt.io.tools.ingestion import SimpleJsonLDSpider
-    from funkyprompt.ops.entities import SchemaOrgVectorEntity
-    from funkyprompt.io.stores import VectorDataStore
+    from funkyprompt.model.entity import SchemaOrgVectorEntity
 
     def factory(**sample):
         """
@@ -528,8 +524,6 @@ def ingest_site(
         site_map_or_index: a link to site map or index to scrape links from
         prefix_filter: for example /blogs/ /recipes/ or something specific we are interested in
     """
-    from funkyprompt.ops.entities import InstructAbstractVectorStoreEntry
-    from funkyprompt.io.stores import VectorDataStore
 
     # this is a misnomer at the moment - json is a special case - we should use it if its useful
     s = SimpleJsonLDSpider(
@@ -542,11 +536,11 @@ def ingest_site(
         # for now we will use the found collection
         pass
 
-    Model = InstructAbstractVectorStoreEntry.create_model(name=name)
+    Model = InstructEmbeddingContentModel.create_model(name=name)
     records = []
     for url in s._found:
         for i, p in enumerate(_ingest_web_page(url)):
-            record = Model(name=f"{url}_{i}", text=p, doc_id=url)
+            record = Model(name=f"{url}_{i}", content=p, doc_id=url)
             records.append(record)
 
     store = VectorDataStore(Model)
