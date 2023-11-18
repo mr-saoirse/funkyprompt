@@ -4,7 +4,7 @@ description: The best prompts are no prompts
 
 # Why funkyprompt
 
-The LLM and LLM tool space is noisy so we hesitantly introduce a new and simple tool into this space. The goal is to focus on _powerful predictability_ when building on agent systems. What this means we want to be able to gradually build more and more complex systems without sacrificing determinism as we combined LLMs with our code and data. `funkyprompt` takes the stance that this is done by respecting the interface between (a) the LLM such as OpenAI chat completions with functions interface and (b) everything else i.e. our code.&#x20;
+The LLM and LLM tool space is noisy so we hesitantly introduce a new yet simple tool into this space. The goal is to focus on _powerful predictability_ when building on agent systems. What this means is we want to be able to gradually build more and more complex systems without sacrificing determinism as we combined LLMs with our code and data. `funkyprompt` takes the stance that this is done by respecting the interface between (a) the LLM such as OpenAI chat completions with functions interface and (b) everything else i.e. our code.&#x20;
 
 `funkyprompt` works by exploring how we can write code as we normally would, with typing and docstrings, avoid writing prompts at all and yet still create powerful agent systems.  At the core we run a _single interpreter loop_ that interfaces between our code to the LLM. It tries to solve problems, plan and answering questions by calling out to supplied functions. It appears a simple pattern subsumes zero shot, conversational, planning and multi agent systems in a purely functional way.&#x20;
 
