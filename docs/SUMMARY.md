@@ -2,7 +2,7 @@
 
 * [Why funkyprompt](README.md)
   * [Install](why-funkyprompt/install.md)
-  * [Deploy](why-funkyprompt/deploy.md)
+  * [Deploy (Optional)](why-funkyprompt/deploy-optional.md)
   * [RAG systems](why-funkyprompt/rag-systems.md)
 
 ## Functions

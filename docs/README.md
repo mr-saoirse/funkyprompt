@@ -31,5 +31,5 @@ The `funkyprompt` library provides tools for understanding how the LLM inspects 
 
 ## Getting Started
 
-<table data-view="cards"><thead><tr><th></th><th></th><th></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td></td><td><a data-mention href="why-funkyprompt/install.md">install.md</a></td><td></td><td><a href="why-funkyprompt/install.md">install.md</a></td></tr><tr><td></td><td><a data-mention href="why-funkyprompt/deploy.md">deploy.md</a></td><td></td><td></td></tr><tr><td></td><td><a data-mention href="why-funkyprompt/rag-systems.md">rag-systems.md</a></td><td></td><td></td></tr></tbody></table>
+<table data-view="cards"><thead><tr><th></th><th></th><th></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td></td><td><a data-mention href="why-funkyprompt/install.md">install.md</a></td><td></td><td><a href="why-funkyprompt/install.md">install.md</a></td></tr><tr><td></td><td><a data-mention href="why-funkyprompt/deploy-optional.md">deploy-optional.md</a></td><td></td><td></td></tr><tr><td></td><td><a data-mention href="why-funkyprompt/rag-systems.md">rag-systems.md</a></td><td></td><td></td></tr></tbody></table>
 
