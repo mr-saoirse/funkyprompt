@@ -77,7 +77,7 @@ from funkyprompt import agent
 agent("What is the capital of Ireland")
 ```
 
-Next we illustrate how import functions can supplying them allows the agent to inspect the functions along with the Pydantic arguments and understand how to call the functions
+Next we illustrate how adding functions allows the agent to inspect the functions along with the Pydantic arguments and understand how to call the functions
 
 ```python
 from funkyprompt.ops.examples import *
@@ -87,11 +87,15 @@ fns = [describe_function(get_persons_favourite_thing_of_type),
 agent("What is John@gmail.com's favourite color and his most likely action?", fns)
 ```
 
-The agent is able to take a reasoned approach to call one function and then pass the results to the other
+The agent is able to take a reasoned approach to call one function and then pass the results to the other.
 
-Next we remove the functions `fns` that are passed in to the agent call. We do this because the `funkyprompt` interpreter has a a function lookup to use if stuck.&#x20;
+{% hint style="info" %}
+While we show examples of passing functions into the context, the real value of `funkyprompt` is how we search and load functions dynamically.
+{% endhint %}
 
-We want to see that the agent will search for functions only when stuck, will find those functions, and will call those functions. With the `funkyprompt` interpret this works. This neat but not challenging for the LLM to do if we set things up right. The trick is to control parameter names etc so that selected functions are properly invoked.&#x20;
+Next we remove the functions that are passed in to the agent call. We do this because the `funkyprompt` interpreter has a a function lookup to use if stuck.&#x20;
+
+We want to see that the agent will search for functions only when stuck, will find those functions, and will call those functions. With the `funkyprompt` interpreter this works. This is neat but not challenging for the LLM to do if we set things up right. The trick is to control parameter names etc so that selected functions are properly invoked.&#x20;
 
 ```python
 agent("What is John@gmail.com's favourite color and his most likely action?")
