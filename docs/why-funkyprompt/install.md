@@ -41,7 +41,7 @@ export FP_STORE_HOME=s3://<YOUR-BUCKET>/<some-dir>
 
 ***
 
-To check the library is installed you could ask a question via chat gpt
+To check the library is installed you could ask a question...
 
 {% hint style="info" %}
 Set an alias to make commands simpler. I am setting&#x20;
