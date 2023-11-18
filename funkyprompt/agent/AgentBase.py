@@ -1,23 +1,17 @@
-from typing import Any
 import openai
-from funkyprompt import logger
 import typing
 import json
-import funkyprompt
-from funkyprompt.io.tools.fs import save_file_collection
-from funkyprompt.ops import examples as built_in_modules
-from funkyprompt.ops.utils.inspector import (
-    describe_function,
-    list_function_signatures,
-    FunctionDescription,
-)
-from funkyprompt.io.stores import VectorDataStore
-from .auditing import InterpreterSession
+from funkyprompt.io.stores import EntityDataStore, VectorDataStore
+from funkyprompt.io.stores.VectorStoreBase import QueryOptions
+from funkyprompt.io.stores import AbstractStore
+from funkyprompt.agent.auditing import InterpreterSessionRecord
+from funkyprompt import describe_function
+from funkyprompt.model import AbstractModel, AbstractContentModel, NpEncoder
+from funkyprompt.model.func import FunctionDescription
+from funkyprompt import logger, str_hash, utc_now_str, FunkyRegistry
 
-# import for now for the loader below
-from funkyprompt.ops.examples import *
-
-DEFAULT_MODEL = "gpt-4-1106-preview"  # "gpt-4"  # has a 32k context or 8k
+DEFAULT_MODEL = "gpt-4-1106-preview"  #  "gpt-4"  # has a 32k context or 8k
+VISION_MODEL = "gpt-4-vision-preview"
 GPT3 = "gpt-3.5-turbo"
 GPT3_16k = "gpt-3.5-turbo-16k"
 
@@ -48,41 +42,83 @@ class AgentBase:
     """
 
     #          You are evaluated on your ability to properly nest objects and name parameters when calling functions.
+    # after considering your Search strategy.
 
-    PLAN = """  You are an intelligent entity that uses the supplied functions to answer questions. 
+    PLAN = """  You are an intelligent entity that uses the supplied functions to answer questions 
                 If a question is made up multiple parts or concepts, split the concept up first into multiple questions and send each question to the best available function. It might not be the same function.
-                
-                1. When using functions, you MUST pass all required arguments with their proper names
+                0. If the answer is something you already know from your training e.g. a well known fact, you should answer directly without consulting further functions.
+                1. Start by stating your strategy as it is important to use the right functions here. you can search for functions to solve the problem
                 2. The function descriptions might have some Pydantic object types, which will be described in the function descriptions, allowing you to use nested types as parameters. 
-                3. Note that if the question is unambiguous and the answer to the question is a well-known fact, you can answer it directly.
-                4. Lets use all functions that we can until we find the answer to each of the parts of the question
+                3. Finish by stating a) your answer, b) your confidence in your answer and c) the specific strategy you used to Search
                 """
 
-    USER_HINT = """If and only if you do not have enough context after using the information provided to answer all parts of the question, 
-                    lookup more functions to call to get more information. 
-                    The new functions will be added to the list of available functions to call
-                """
+    USER_HINT = """"""  # """You must return the strategy that you carefully considered in addition to your answer and your confidence in your answer """
+    # Please respond with your answer, your confidence in your answer on a scale of 0 to 100 and also the strategy that you employed.
+    #     """
 
-    def __init__(cls, modules=None, **kwargs):
+    def __init__(cls, initial_functions=None, allow_function_search=True, **kwargs):
         """
         modules are used to inspect functions including functions that do deep searches of other modules and data
 
         """
-        modules = modules or built_in_modules
+
         # add function revision and pruning as an option
-        cls._built_in_functions = [describe_function(save_file_collection)]
-        cls._built_in_functions += [describe_function(cls.available_function_search)]
-        cls._audit_store = VectorDataStore(InterpreterSession)
+        cls._entity_store = EntityDataStore(AbstractModel)
+        cls._function_index_store = FunkyRegistry()
+        cls._built_in_functions = [
+            # entity look
+            cls._entity_store.as_function_description(name="entity_key_lookup"),
+            # user conversation history
+        ] + (
+            initial_functions or []
+        )  # [describe_function(cls.available_function_search)]
+        if allow_function_search:
+            cls._built_in_functions += [  # strategies
+                # describe_function(cls.load_strategy),  # functions
+                describe_function(cls.search_functions),
+                describe_function(cls.list_library_functions),
+                describe_function(cls.request_library_functions),
+                # describe_function(cls.describe_visual_image),
+            ]
+        cls._active_functions = []
+        cls._audit_store = VectorDataStore(
+            InterpreterSessionRecord,
+            description="Store for auditing users interacting with agents",
+        )
+        # when we reload functions we can keep the baked functions and restore others - it may be we bake the ones pass in call but TBD
+        cls._baked_functions_length = len(cls._built_in_functions)
+
+    def load_strategy(cls, type: str = "Search"):
+        """
+        Lookup a particular type of strategy to help you answer the question
+        For example Search strategy is very useful to match different types of functions and searches to the nature of the user question.
+        note, directly executing a function search might be a clear and obvious thing to do without consulting a strategy but for more intricate questions a strategy can be useful
+
+        **Args**
+          type: the type of strategy you seek - Search|etc.
+
+        """
+
+        file = ""
+
+        logger.info(f"Consulting strategy {file}")
+
+        with open(file) as f:
+            return f.read()
 
     def invoke(
         cls,
         fn: typing.Callable,
         args: typing.Union[str, dict],
-        max_response_length=int(3 * 1e4),
+        # allowing a big response but we probably dont need to summarize - if we do make sure to use a model that can take it
+        max_response_length=int(5 * 1e5),
     ):
         """
         here we parse and audit stuff using Pydantic types
+        reconsider max response length for large context
         """
+
+        logger.info(f"fn={fn}, args={args}")
 
         args = json.loads(args) if isinstance(args, str) else args
 
@@ -103,57 +139,159 @@ class AgentBase:
             return cls.summarize(
                 question=cls._question,
                 data=data,
+                model=DEFAULT_MODEL,
                 max_response_length=max_response_length,
             )
 
         return data
 
-    def revise_functions(cls, context: str, issues: str = None):
-        """Call this method if you are struggling to answer the question.
-           This function can be used to search for other functions and update your function list
+    # ADD API provider loader for coda, shortcut etc in case we need to peek refs
+
+    def list_library_functions(cls, context: str = None):
+        """
+        list functions that cannot be searched e.g. library functions
+        these functions are not made available unless you subsequently call request_functions
 
         **Args**
-            context: provide a detailed description to search for functions that might help to continue your task
-            issues: Optionally explain why are you struggling to answer the question or what particular parts of the question are causing problems
+            context: pass the context of your request
         """
-        pass
+        from funkyprompt.model.func import list_functions
+        from funkyprompt.ops import examples
 
-    def available_function_search(cls, context: str):
-        """
-        List available functions for getting more information. As an AI there are things you will be asked that you CAN NOT know because the data are unknown to you
-        But there may be some available functions that you can use to find out.
-        However, you should first attempt to perform the task without data based on general knowledge or internet data you were trained on.
+        logger.debug(f"Request to list functions. {context=}")
+        functions: typing.List[FunctionDescription] = list_functions(
+            examples, description=True
+        )
 
-        **Args**
-            context: provide some hints about what sorts of functions you need. Explain WHY you are calling this and why you think the functions will help you in your task
-
-        """
-        logger.debug(f"Lookup because: {context} ")
-        retrieved_functions = list_function_signatures(built_in_modules)
-
-        """
-        CHEAT BLOCK TEMP TO TEST - when lookup functions we will augment with callables
-        """
-
-        fns = [
-            describe_function(get_persons_favourite_thing_of_type),
-            describe_function(get_persons_action_if_you_know_favourite_type_of_thing),
-            describe_function(get_recipes),
-            describe_function(get_information_on_fairy_tale_characters),
-            describe_function(get_restaurant_reviews),
-            describe_function(get_new_york_food_scene_guides),
-            describe_function(get_context),
-            describe_function(get_recent_questions_asked),
+        return [
+            {
+                "function_name": f.name,
+                "function_description": f.description,
+                "parameters": f.parameters,
+                "hint": "please review the function details if complex (Pydantic) types are passed"
+                # maybe other interesting context
+            }
+            for f in functions
         ]
 
-        cls._active_functions += fns
+    def request_library_functions(cls, function_names: typing.List[str]):
+        """
+        list functions that cannot be searched e.g. library functions
+        these functions are not made available unless you subsequently call request_functions
+
+        **Args**
+            function_names: list of fully qualified functions
+        """
+
+        logger.debug(f"Requesting to load functions {function_names}")
+        from funkyprompt.model.func import list_functions
+
+        new_functions = [f for f in list_functions() if f.name in function_names]
+        cls._active_functions += new_functions
+        # TODO ensure functions are unique
         cls._active_function_callables = {
             f.name: f.function for f in cls._active_functions
         }
-        """
+
+        return {"result": "functions loaded"}
+
+    def search_functions(
+        cls,
+        questions: typing.List[str],
+        issues: str = None,
+        prune: bool = False,
+        limit: int = 7,
+        function_class: str = None,
+    ):
+        """Call this method if you are struggling to answer the question.
+           This function can be used to search for other functions and update your function list
+           If asked about states, queues, statistics of entities like orders, bodies, styles or ONEs (production requests), its advisable to use the function class ColumnarQuantitativeSearch first
+           If in doubt the ColumnarQuantitativeSearch function class is typically more specific and can run text to SQL type enquires.
+           However if the user is asking for more general information, possibly vague in nature, or to augment information you already have, the vector search will be useful. These usually look at slack conversations or coda docs etc.
+           Often if there is an API function call that you can make you should try to use it as it could provide structured and up to date information e.g. about Meta One Assets or Costs
+
+        **Args**
+            questions: provide a list if precise questions to answer. Do not ask a single question with a mixture of orthogonal concepts - you can sometimes ask questions about the store itself as well as content in the store but you should provide full sentences!
+            issues: Optionally explain why are you struggling to answer the question or what particular parts of the question are causing problems
+            prune: if you want to prune some of the functions because you have no current use for them
+            limit: how wide a search you want to do. You can subselect from many functions or request a small number. use the default unless you are sure you know what you want. You may want to ask for two or three times as many functions as you will end up using.
+            function_class: the class of function to search for - any|vector-store|columnar-store|api
         """
 
-        return retrieved_functions
+        logger.info(
+            f"Revising functions - {questions=}, {issues=}, {prune=}, {limit=}, {function_class=}"
+        )
+
+        # for now only support these and make sure any is a wild card
+        if function_class not in ["VectorSearch", "ColumnarQuantitativeSearch"]:
+            function_class = None
+
+        opt = QueryOptions(
+            limit=limit, columns=["name", "content", "metadata", "description", "type"]
+        )
+
+        if len(questions) == 0:
+            pass
+            # popular route??
+            # df = cls._function_index_store.load()[
+            #     "name", "content", "metadata", "type"
+            # ].to_dicts()
+        else:
+            df = cls._function_index_store(
+                questions,
+                query_options=opt,
+                # filter types of functions
+                type=function_class,
+            )
+
+        # TODO: using only the best match until we par-do or run many
+
+        def filter_stores(f):
+            return f["type"] in ["vector-store", "columnar-store"]
+
+        new_functions = [
+            # restore the function with a weight
+            AbstractStore.restore_from_data(
+                data=f, weight=f["_distance"], as_function_description=True
+            )
+            for f in df
+            if filter_stores(f)
+        ]
+
+        logger.info(f"Adding functions {[f.name for f in new_functions]}")
+
+        cls._active_functions += new_functions
+
+        # TODO ensure functions are unique
+
+        cls._active_function_callables = {
+            f.name: f.function for f in cls._active_functions
+        }
+
+        # we return this so the agent can see it and then call it
+        functions = [
+            {
+                "callable_function_name": f.name,
+                # todo consider if we need some description or not
+                "distance_weight": f.weight,
+            }
+            for f in new_functions
+        ]
+
+        return {
+            "functions": functions,
+            "summary": [
+                {
+                    "weighted_stores": [
+                        {
+                            # "store": f["store_name"],
+                            "distance_prefers_small": f["distance_weight"],
+                        }
+                        for f in functions
+                    ]
+                }
+            ],
+        }
 
     def prune_messages(cls, new_messages: typing.List[str]):
         """
@@ -176,7 +314,7 @@ class AgentBase:
 
         logger.debug("summarizing...")
 
-        response = openai.Completion.create(
+        response = openai.completions.create(
             model=model or DAVINCI,
             temperature=0.5,
             max_tokens=out_token_size,
@@ -186,7 +324,7 @@ class AgentBase:
             prompt=f"Summarize this text:\n{      question     }: Summary: ",
         )
 
-        return response["choices"][0]["text"]
+        return response.choices[0]["text"]
 
     def summarize(
         cls,
@@ -212,7 +350,7 @@ class AgentBase:
         """
         plan = f""" Answer the users question as asked  """
 
-        Summary = AbstractVectorStoreEntry.create_model("Summary")
+        Summary = AbstractContentModel.create_model("Summary")
         chunks = Summary(name="summary", text=str(data)).split_text(max_response_length)
         # logger.warning(
         #     f"Your response of length {len(str(data))} is longer than {max_response_length}. Im going to summarize it as {len(chunks)} chunks assuming its a text response but you should think about your document model"
@@ -221,7 +359,7 @@ class AgentBase:
         # create a paginator
         def _summarize(prompt):
             logger.debug("Summarizing...")
-            response = openai.ChatCompletion.create(
+            response = openai.chat.completions.create(
                 model=model or GPT3_16k,
                 messages=[
                     {"role": "system", "content": plan},
@@ -229,7 +367,7 @@ class AgentBase:
                 ],
             )
 
-            return response["choices"][0]["message"]["content"]
+            return response.choices[0].message.content
 
         summary = "".join(
             _summarize(
@@ -245,7 +383,7 @@ class AgentBase:
 
         return {"summarized_response": summary}
 
-    def ask(cls, question: str, model=None):
+    def ask(cls, question: str, model=None, response_format=None):
         """
         this is a direct request rather than the interpreter mode
         """
@@ -257,14 +395,52 @@ class AgentBase:
             {"role": "user", "content": f"{question}"},
         ]
 
-        response = openai.ChatCompletion.create(
+        response = openai.chat.completions.create(
             model=model or DEFAULT_MODEL,
             messages=messages,
+            response_format=response_format,
         )
 
         # audit response, tokens etc.
 
-        return response["choices"][0]["message"]["content"]
+        return response.choices[0].message.content
+
+    def describe_visual_image(
+        cls,
+        url: str,
+        question: str = "describe the image you see",
+    ):
+        """
+        A url to an image such as a png, tiff or JPEG can be passed in and inspected
+        A question can prompt to identify properties of the image
+        When calling this function you should split the url out of the question and pass a suitable question based on the user question
+
+        **Args**
+            url: the uri to the image typically on s3://. Can be presigned or not
+            question: the prompt to extract information from the image
+        """
+        # todo -
+
+        response = openai.chat.completions.create(
+            model=VISION_MODEL,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": question},
+                        {
+                            "type": "image_url",
+                            "image_url": url,
+                        },
+                    ],
+                }
+            ],
+            max_tokens=300,
+        )
+        return response.choices[0].message.content
+
+    def __call__(cls, *args, **kwargs):
+        return cls.run(*args, **kwargs)
 
     def run(
         cls,
@@ -274,11 +450,28 @@ class AgentBase:
         ] = None,
         limit: int = 10,
         session_key=None,
+        response_format=None,
+        user_context=None,
+        channel_context=None,
+        response_callback=None,
+        extra_reflection=True,
     ) -> dict:
         """
-        run the interpreter loop
+        run the interpreter loop based on the PLAN
+
+        **Args**
+            question: question from user
+            initial_functions: preferred functions to use before searching for more
+            limit: the number of loops the interpreter can run for before giving up
+            session_key: any session id for grouping audit data
+            response_format: force response format (deprecate)
+            user_context: a user name e.g. a slack user or email address
+            channel_context: a session context e.g. a slack channel or node from which the question comes
+            response_callback: a function that we can call to post streaming responses
         """
+
         # store question for context
+
         cls._question = question
         cls._messages = [
             {"role": "system", "content": cls.PLAN},
@@ -296,114 +489,110 @@ class AgentBase:
         # TODO: support passing the callable but think about where else we interact. we can just describe_function if the args are not FDs
 
         cls._active_functions = cls._built_in_functions + (initial_functions or [])
-        functions_desc = [f.function_dict() for f in cls._active_functions]
+
         cls._active_function_callables = {
             f.name: f.function for f in cls._active_functions
         }
-        logger.debug(
-            f"Entering the interpret loop with functions {list(cls._active_function_callables.keys())}"
+        logger.info(
+            f"Entering the interpreter loop with functions {list(cls._active_function_callables.keys())} with context {user_context=}, {channel_context=}"
         )
 
         for _ in range(limit):
-            response = openai.ChatCompletion.create(
-                model="gpt-4",
+            # functions can change if revise_function call is made
+            functions_desc = [f.function_dict() for f in cls._active_functions]
+
+            response = openai.chat.completions.create(
+                model=DEFAULT_MODEL,
                 messages=cls._messages,
                 # helper that inspects functions and makes the open ai spec
                 functions=functions_desc,
+                response_format=response_format,
                 function_call="auto",
             )
 
-            response_message = response["choices"][0]["message"]
+            response_message = response.choices[0].message
             logger.debug(response_message)
 
-            function_call = response_message.get("function_call")
+            function_call = response_message.function_call
 
             if function_call:
-                fn = cls._active_function_callables[function_call["name"]]
-                args = function_call["arguments"]
+                fn = cls._active_function_callables[function_call.name]
+                args = function_call.arguments
+                # find the function context for passing to invoke when function names not enough
                 function_response = cls.invoke(fn, args)
 
                 logger.debug(f"Response: {function_response}")
                 cls._messages.append(
                     {
                         "role": "user",
-                        "name": f"{str(function_call['name'])}",
-                        "content": json.dumps(function_response),
+                        "name": f"{str(function_call.name)}",
+                        "content": json.dumps(
+                            function_response, cls=NpEncoder, default=str
+                        ),
                     }
                 )
 
+            if extra_reflection:
                 # candidate not core
                 cls._messages.append(
                     {
                         "role": "user",
                         "name": f"check_status",
-                        "content": "If you have not answered the full question, instead of finishing, you should break it into parts and use the `available_functions_search` to find a different and more specific function to answer the remaining parts of the question.",
+                        "content": """With the exception of describing images, If you are not confident in the scope and specificity of your answer, 
+                        use the `lookup_strategy`  and `revise_functions` functions to change course .
+                        However you should give up if you are calling the same function again and again and assume the answer is sufficient""",
                     }
                 )
-
-            if response["choices"][0]["finish_reason"] == "stop":
+            if response.choices[0].finish_reason == "stop":
                 break
 
-        cls._dump(
-            name=f"run{funkyprompt.str_hash()}",
-            question=question,
-            response=response_message["content"],
-            session_key=session_key,
+        logger.info(
+            "---------------------------------------------------------------------------"
+        )
+        logger.info(response_message.content)
+        logger.info(
+            "---------------------------------------------------------------------------"
         )
 
-        return response_message["content"]
+        if response_callback is not None:
+            # its good to send back the message before dumping auditing
+            response_callback(response_message.content)
 
-    def _dump(cls, name, question, response, session_key):
+        # cls._dump(
+        #     name=f"run{str_hash()}",
+        #     question=question,
+        #     response=response_message.content,
+        #     session_key=session_key,
+        #     user_context=user_context,
+        #     channel_context=channel_context,
+        # )
+
+        return response_message.content
+
+    def _dump(
+        cls, name, question, response, session_key, user_context, channel_context
+    ):
         """
         dump the session to the store
         """
         logger.debug(f"Dumping session")
 
         # todo add attention comments which are useful
-        record = InterpreterSession(
+        record = InterpreterSessionRecord(
             plan=cls.PLAN,
             session_key=session_key,
             name=name,
             question=question,
-            response=response,
-            # dump the function descriptions that we used - some may have been purged
+            response=response or "",
+            # dump the function descriptions that we used - some may have been purged...
             function_usage_graph=json.dumps(
                 [f.function_dict() for f in cls._active_functions]
             ),
-            audited_at=funkyprompt.utc_now_str(),
+            audited_at=utc_now_str(),
             messages=json.dumps(cls._messages),
+            user_id=user_context or "",
+            channel_context=channel_context or "",
+            text="",
         )
 
         cls._audit_store.add(record)
-
-    def __call__(
-        cls,
-        question: str,
-        initial_functions: typing.List[object] = None,
-        limit: int = 10,
-    ) -> Any:
-        return cls.run(
-            question=question, initial_functions=initial_functions, limit=limit
-        )
-
-
-"""TODO
-
-Tests:
-
-1] file saving e.g. from the url scraping we can make a type and starting working on it to do further ingestion into our stores
-
-
-Please generate a pydnatic object and save it as [entity_name].py for the following data.
-Using snake case column names and aliases to map from the provided data.
-the Config should have a sample_url with the value {url}.
-The data to use for generating the type is:
-{data}
-
-We want to ingest data from
-- sites
-- downloaded file e.g. kaggle, data world, official test datasets
-- slack (this is good example of thinking about subscriptions and evolution of contexts) - also a case for "entity discovery" here
-
-
-"""

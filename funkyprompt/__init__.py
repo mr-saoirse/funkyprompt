@@ -32,8 +32,9 @@ from datetime import datetime
 utc_now_str = lambda: datetime.utcnow().isoformat()
 
 from . import io, ops
-from .agent.AgentBase import AgentBase
+from funkyprompt.io.stores import FunkyRegistry
+from funkyprompt.model.func import describe_function
 from funkyprompt.ops import examples
-from funkyprompt.ops.utils.inspector import describe_function
+from .agent.AgentBase import AgentBase
 
 agent = AgentBase(modules=examples)

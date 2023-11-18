@@ -1,9 +1,9 @@
-from funkyprompt.ops.entities import AbstractVectorStoreEntry, typing, model_validator
+from funkyprompt.model.entity import AbstractContentModel, typing, model_validator
 from funkyprompt import __version__
 from funkyprompt.io.stores import VectorDataStore
 
 
-class InterpreterSession(AbstractVectorStoreEntry):
+class InterpreterSessionRecord(AbstractContentModel):
     """
     this is used to audit the session so we can look back at plans
     """
@@ -33,11 +33,6 @@ class InterpreterSession(AbstractVectorStoreEntry):
         if values.get("session_key"):
             values["doc_id"] = values["session_key"]
 
-        # if not values.get("id"):
-        #     values["id"] = values["name"]
-        # if not values.get("doc_id"):
-        #     values["doc_id"] = values["name"]
-
         return values
 
 
@@ -45,4 +40,4 @@ def get_audit_store():
     """
     Loads the vector store for the audit data
     """
-    return VectorDataStore(InterpreterSession)
+    return VectorDataStore(InterpreterSessionRecord)

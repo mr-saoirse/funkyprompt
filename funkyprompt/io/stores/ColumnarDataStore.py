@@ -1,7 +1,7 @@
-from funkyprompt.ops.entities import AbstractEntity, typing
-from funkyprompt.io.clients.duck import DuckDBClient
 from . import AbstractStore
-from funkyprompt import logger, COLUMNAR_STORE_ROOT_URI
+from funkyprompt.model.entity import AbstractModel, typing
+from funkyprompt.io.clients.duck import DuckDBClient
+from funkyprompt import logger, STORE_ROOT
 from funkyprompt.io.tools import fs
 import funkyprompt
 
@@ -12,17 +12,25 @@ class ColumnarDataStore(AbstractStore):
 
     """
 
-    def __init__(self, entity: AbstractEntity, extra_context=None):
-        super().__init__(entity=entity)
-        self._entity = entity
-        self._db = DuckDBClient()
-        self._table_path = f"{COLUMNAR_STORE_ROOT_URI}/{self._entity_namespace}/{self._entity_name}/parts/0/data.parquet"
-        # base class
+    STORE_DIR = "columnar-store"
 
-        self._extra_context = extra_context
+    def __init__(cls, model: AbstractModel, description):
+        cls._model = model
+        cls._db = DuckDBClient()
+        cls._table_path = f"{STORE_ROOT}/{cls.STORE_DIR}/{cls._model.__entity_namespace__}/{cls._model.__entity_name__}/parts/0/data.parquet"
+        cls._description = description
+        cls._enums = cls._db.inspect_enums(cls._table_path)
+        cls._fields = cls._db.probe_field_names(cls._table_path)
 
-    def load(self):
-        return fs.read(self._table_path)
+    def load(self, limit=None, lazy=False):
+        """
+        currently a cumbersome interface because im migrating the stores to be consistent on polars
+        """
+        return (
+            fs.read(self._table_path, lazy=lazy)
+            if not limit
+            else fs.read(self._table_path, lazy=lazy).limit(limit)
+        )
 
     def __call__(self, question):
         return self.run_search(question)
@@ -32,17 +40,21 @@ class ColumnarDataStore(AbstractStore):
 
     @property
     def query_context(self):
-        return fs.get_query_context(self._table_path, name=self._entity_name)
+        return fs.get_query_context(self._table_path, name=self._model.__entity_name__)
 
     def query(self, query):
         ctx = self.query_context
         return ctx.execute(query).collect()
 
-    def fetch_entities(self, limit=10) -> typing.List[AbstractEntity]:
-        data = self.query(f"SELECT * FROM {self._entity_name} LIMIT {limit}").to_dicts()
-        return [self._entity(**d) for d in data]
+    def fetch_entities(self, limit=10) -> typing.List[AbstractModel]:
+        data = self.query(
+            f"SELECT * FROM {self._model.__entity_name__} LIMIT {limit}"
+        ).to_dicts()
+        # infer / sometimes we dont need to do this but for now this is just a convenience
+        model = self.get_data_model()
+        return [model(**d) for d in data]
 
-    def add(self, records: typing.List[AbstractEntity], mode="merge", key_field=None):
+    def add(self, records: typing.List[AbstractModel], mode="merge", key_field=None):
         """
         Add the fields configured on the Pydantic type that are columnar - defaults all
         These are merged into parquet files on some path in the case of this tool
@@ -54,6 +66,9 @@ class ColumnarDataStore(AbstractStore):
 
         if len(records):
             logger.info(f"Writing {self._table_path}. {len(records)} records.")
+            if not fs.exists(self._table_path):
+                logger.info("registering the store as we add first time records")
+                self.register_store()
             if mode == "merge":
                 logger.info(f" Merge will be on key[{merge_key}]")
             return (
@@ -85,7 +100,7 @@ class ColumnarDataStore(AbstractStore):
                 s = s.split("```")[1].replace("sql", "").strip("\n")
             return s.replace("CURRENT_DATE ", "CURRENT_DATE()")
 
-        enums = {} if not build_enums else self._db.inspect_enums(self._table_path)
+        enums = {} if not build_enums else self._enums
 
         prompt = f"""For a table called TABLE with the {self._fields}, and the following column enum types {enums} ignore any columns asked that are not in this schema and give
             me a DuckDB dialect sql query without any explanation that answers the question below. 
@@ -105,7 +120,12 @@ class ColumnarDataStore(AbstractStore):
             return data
         # TODO better LLM and Duck exception handling
         except Exception as ex:
-            return []
+            logger.warning(f"Failed to execute {ex}")
+            return [
+                {
+                    "FAILED_QUERY_REASON": f"Your question failed: {str(ex).replace(self._table_path, 'TABLE')}"
+                }
+            ]
 
     def as_function(self, question: str):
         """
