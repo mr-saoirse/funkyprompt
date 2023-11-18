@@ -4,7 +4,7 @@ description: Adding and using data in funkyprompt
 
 # RAG systems
 
-Software and data are not really separable these days. The motivation for building `funkyprompt` was really to build data-rich systems. So the functions we are dealing with are often, but maybe not always, functions that read data. This puts _Retrieval Augmented Generation_ (RAG) at the heart of things.
+Software and data are not really separable these days. The motivation for building `funkyprompt` was really to build data-rich systems with LLM based agents sitting on top. The functions we are dealing with are often, but maybe not always, functions that read data. This puts _Retrieval Augmented Generation_ (RAG) at the heart of things.
 
 One useful thing about `funkyprompt` is the RAG is essentially "built in". This is because we use blob  storage centric data stores so everything is "embedded".&#x20;
 

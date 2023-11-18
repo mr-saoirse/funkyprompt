@@ -2,7 +2,7 @@
 description: How to deploy to Kubernetes
 ---
 
-# Deploy
+# Deploy (Optional)
 
 The reason we will deploy `funkyprompt` is that we want to have a served version of the agent i.e. an API and we want to create _ingestion_ jobs to continue to ingest data via processes running on cloud.
 
