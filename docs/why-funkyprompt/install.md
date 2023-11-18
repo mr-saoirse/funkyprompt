@@ -53,17 +53,11 @@ alias fp='poetry run fprompt' and running from a poetry virtual env
 fp ask -q "What is the capital of ireland?"
 ```
 
-This of course is not the reason why you would want to use `funkyprompt` - a slightly more interesting question is one that requires inspecting the code base for functions to answer the question. We have some example functions to make it easier to get started but it will be more fun if you bring your own. But for now
+This of course is not the reason why you would want to use `funkyprompt` - a slightly more interesting question is one that requires inspecting the codebase for functions to answer the question. We have some example functions to make it easier to get started but it will be more fun if you bring your own. But for now we ask this vague question....
 
 ```bash
 fp interpret -q "What would a person who likes cats more than dogs do?"
 ```
 
-The out put will be something like below. We show a graphical representation of the functions to show the plan which is more relevant than what the answer is. The point of `funkyprompt` is to help the LLM navigate a code base to answer questions in a simple way.
-
-```
-answer: 
-```
-
-**Execution plan**
+The point of `funkyprompt` is to help the LLM navigate a codebase of functions or database of stored functions to answer questions in a way that can scale with complexity. We believe  in modularity and adding many small functions and stores to build solutions bottom-up
 
