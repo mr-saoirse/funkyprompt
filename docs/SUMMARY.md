@@ -34,3 +34,4 @@
 
 * [Funky LLM Best Practices](funky-llm-best-practices.md)
 * [Tips and Tricks](tips-and-tricks.md)
+* [Example test questions](example-test-questions.md)
