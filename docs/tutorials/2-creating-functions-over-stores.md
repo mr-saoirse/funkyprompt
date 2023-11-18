@@ -23,11 +23,65 @@ The content of the function description is embedded for search. The \`metadata\`
 
 While stores are registered on creation, we can see how this is done by explicitly registering the function again
 
-```
+```python
 Model = InstructEmbeddingContentModel.create_model('BookChapters')
 store = VectorDataStore(Model, description="A store of different book chapters")
 store.register_store()
 ```
 
-This allows us to search for stores/functions in different way. We could do a lookup on function names or we could do a vector search on possibly long-form textual descriptinos of what functions can do. This is design for a case when we have a very large number of functions/stores.
+This allows us to search for stores/functions in different way. We could do a lookup on function names or we could do a vector search on possibly long-form textual descriptions of what functions can do. This is design for a case when we have a very large number of functions/stores.
 
+If we see a store that we like we can quickly restore it from the data in the registry (as an alternative to loading it using a model). Here are two ways to load a store
+
+```python
+#method 1 - searching and loading stores
+eg = reg.load().to_dicts()[1]
+from funkyprompt.io.stores import AbstractStore
+store = AbstractStore.restore_from_data(eg)
+
+#method 2 - using types to pick a store based on namespace/name conventions
+from funkyprompt.model import AbstractModel
+from funkyprompt.io import VectorDataStore
+Model = AbstractModel.create_model('BookChapters', namespace='default')
+store = VectorDataStore(Model, description='restored book chapters')
+store.load()
+```
+
+## Using stores in LLMs
+
+Now that we understand how to save functions to run searches on stores and to save and reload them in different ways, we can build some search tools to find functions when we need them and use them in the LLM. The LLM has a search function it uses to find and load functions as it runs the InterpreterLoop. We take the position that if the right stores are found and these are narrow in scope and capabalbe of answering the right questions, the real challenge is instead the routing problem of making sure the LLM does indeed select the right functions to use.
+
+{% code overflow="wrap" %}
+```python
+ag = store.as_agent()
+ag('Where is is the H-4 clock today according to the books you have read?')
+```
+{% endcode %}
+
+This example sets up the agent to bias for using this function. This allows us to test the logic. The first thing we can do is passed the question to the vector store and this will return the raw results. Then we can use the appeoach above to get an agent to use the function. The response is
+
+{% code overflow="wrap" %}
+```
+The H-4 clock, according to the books that have been read, is lying in state in an exhibit case at London\'s National Maritime Museum. It draws millions of visitors a year and is considered an important timekeeper that is not currently running to preserve its condition. It could operate if allowed, but the curators do not run it to avoid wear and ensure its preservation for future generations. \n\nMy confidence in this answer is high as it is based on an excerpt from a source that explicitly states the current location and state of the H-4 clock.\n\nThe strategy used to find this information was to run a vector search with the question "Where is the H-4 clock today according to the books you have read?" to retrieve relevant content from the available books
+```
+{% endcode %}
+
+However what we really what to do is to have the agent first search for functions
+
+{% code overflow="wrap" %}
+```python
+funkyprompt.agent('Where is is the H-4 clock today - you may need to search for books first?')
+```
+{% endcode %}
+
+Below im using a strategy in the agent that explains what it is doing for debugging purposes. It returns the correct answer and explains what it did also.
+
+{% hint style="info" %}
+
+
+{% code overflow="wrap" %}
+```
+My strategy involved searching the BookChapters datastore to find relevant information on the current location of the H-4 clock, as suggested by the initial hint of needing to look into books. The search returned an excerpt from a book which describes the H-4 clock as currently being in an exhibit case at London’s National Maritime Museum, which draws millions of visitors a year.\n\na) The H-4 clock is presently on display in an exhibit case at London's National Maritime Museum.\nb) I am highly confident in this answer, as the information comes directly from a relevant and credible book passage obtained through the vectordatastore_search_default_bookchapters function.\nc) The specific strategy I used was to perform a vector datastore search within the BookChapters entity, as this seemed to be the most appropriate source for historical and current information on the location of the H-4 clock based on the context provided.
+```
+{% endcode %}
+{% endhint %}
