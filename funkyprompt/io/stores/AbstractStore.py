@@ -21,16 +21,13 @@ class AbstractStore:
         # TODO: bit weird - want to figure out of we want to use instances or not
         cls._model = model
         cls._alias = alias
-        cls._entity_name = cls._model.__entity_name__
-        cls._entity_namespace = cls._model.__entity_namespace__
-        cls._key_field = cls._model.__key_field__
         cls._about_entity = cls._model.__about__
-        ###############
         cls._description = description
+        cls._key_field = cls._model.__key_field__
 
     @property
     def name(cls):
-        return cls._alias or cls._entity_name
+        return cls._alias or cls._model.__entity_name__
 
     def register_store(cls):
         """
@@ -129,14 +126,16 @@ class AbstractStore:
             ),
         )
 
-    def as_agent(cls):
+    def as_agent(cls, allow_function_search=False):
         """
         convenience retrieve agent with self as function description to test stores
         """
-        from funkyprompt import agent
-        from functools import partial
+        from funkyprompt import AgentBase
 
-        return partial(agent.run, initial_functions=[cls.as_function_description()])
+        return AgentBase(
+            initial_functions=[cls.as_function_description()],
+            allow_function_search=allow_function_search,
+        )
 
     @classmethod
     def restore_from_data(cls, data, as_function_description=False, weight=5):

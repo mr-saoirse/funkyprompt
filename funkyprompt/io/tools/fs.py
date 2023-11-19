@@ -49,7 +49,8 @@ def exists(uri):
     fs = None if uri[:5] != "s3://" else s3fs.S3FileSystem()
     if fs:
         return fs.exists(uri)
-    raise Exception("Not implemented for scheme but easy to fix")
+
+    return Path(uri).exists()
 
 
 def ls(root, file_type="*", search=f"**/", **kwargs):
