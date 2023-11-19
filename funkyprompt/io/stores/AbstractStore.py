@@ -1,9 +1,5 @@
-from funkyprompt.ops.entities import AbstractEntity
 from funkyprompt.io.tools.fs import typed_record_reader
-from funkyprompt.model.entity import (
-    AbstractModel,
-    FunctionRegistryRecord,
-)
+from funkyprompt.model.entity import AbstractModel, FunctionRegistryRecord, typing
 from funkyprompt.model.func import (
     FunctionFactory,
     FunctionDescription,
@@ -52,7 +48,23 @@ class AbstractStore:
         )
 
     @classmethod
-    def ingest_records(cls, uri, entity_type: AbstractEntity, **kwargs):
+    def run_search_many(
+        cls,
+        questions: typing.List[str],
+        stores: typing.List[typing.Any],  # SElf in 3.11 leave it for now
+        num_cores=1,
+    ):
+        """ """
+        from itertools import chain
+
+        # TODO - parallel implementation - we may use Ray depending on where we go with this
+        # ray will be an optional dep
+        return list(
+            chain.from_iterable([store.run_search(questions) for store in stores])
+        )
+
+    @classmethod
+    def ingest_records(cls, uri, entity_type: AbstractModel, **kwargs):
         """
         Ingest a dataframe format of records that are in the correct schema
         this works if a base class is constructed from the entity

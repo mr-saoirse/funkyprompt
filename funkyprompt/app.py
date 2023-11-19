@@ -40,6 +40,15 @@ def upsert_unstructured_data(*, text: AbstractVectorStoreEntry) -> dict:
     return {"done"}
 
 
+# endpoints
+# routes.functions.search
+# routes.functions.list
+# routes.functions.add (index)
+
+# routes.agent.interpret
+# etc.
+
+
 if __name__ == "__main__":
     import uvicorn
 

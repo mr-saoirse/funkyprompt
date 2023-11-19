@@ -3,7 +3,7 @@ import lance
 from funkyprompt.model.entity import AbstractContentModel, typing, BaseModel
 from funkyprompt.io.clients.duck import DuckDBClient
 import funkyprompt
-from funkyprompt import STORE_ROOT
+from funkyprompt import STORE_ROOT, tracer
 import polars as pl
 import pyarrow as pa
 from funkyprompt.io.stores import AbstractStore
@@ -109,6 +109,7 @@ class VectorDataStore(AbstractStore):
     def __call__(cls, *args, **kwargs):
         return cls.run_search(*args, **kwargs)
 
+    @tracer.start_as_current_span("vector_store_search")
     def run_search(
         cls,
         questions: typing.List[str],
@@ -172,7 +173,9 @@ class VectorDataStore(AbstractStore):
 
             # im not sure why the vector is returned
             return (
-                query_root.select(query_options.columns).to_pandas().drop("vector", 1)
+                query_root.select(query_options.columns)
+                .to_pandas()
+                .drop("vector", axis=1)
             )
 
         if not isinstance(questions, list):
@@ -196,7 +199,7 @@ class VectorDataStore(AbstractStore):
             .head(query_options.limit)
         )
 
-        # default to dicts
+        # default to dicts - may create an interface for searches later e.g. response.data response.status response.message etc
         return result.to_dict("records")
 
     def upsert_records(

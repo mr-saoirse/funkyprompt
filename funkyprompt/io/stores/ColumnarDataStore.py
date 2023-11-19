@@ -1,7 +1,7 @@
 from . import AbstractStore
 from funkyprompt.model.entity import AbstractModel, typing
 from funkyprompt.io.clients.duck import DuckDBClient
-from funkyprompt import logger, STORE_ROOT
+from funkyprompt import logger, STORE_ROOT, tracer
 from funkyprompt.io.tools import fs
 import funkyprompt
 
@@ -91,6 +91,7 @@ class ColumnarDataStore(AbstractStore):
 
         return records
 
+    @tracer.start_as_current_span("columnar_store_search")
     def run_search(
         self,
         question: str,

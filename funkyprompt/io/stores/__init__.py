@@ -18,7 +18,7 @@ import funkyprompt
 from funkyprompt.model.entity import FunctionRegistryRecord
 from .AbstractStore import AbstractStore
 from .ColumnarDataStore import ColumnarDataStore
-from .VectorStoreBase import VectorDataStore
+from .VectorDataStore import VectorDataStore
 from .EntityDataStore import EntityDataStore
 import typing
 

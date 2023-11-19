@@ -10,7 +10,6 @@ class InterpreterSessionRecord(AbstractContentModel):
 
     session_key: typing.Optional[str]
     audited_at: str
-    response: str
     question: str
     messages: str
     plan: str
@@ -26,12 +25,8 @@ class InterpreterSessionRecord(AbstractContentModel):
 
     @model_validator(mode="before")
     def default_vals(cls, values):
-        values[
-            "text"
-        ] = f"question: {values['question']}\nresponse:{values['response']}"
-
         if values.get("session_key"):
-            values["doc_id"] = values["session_key"]
+            values["document"] = values["session_key"]
 
         return values
 
