@@ -1,6 +1,7 @@
 import openai
 import typing
 import json
+import numpy as np
 from funkyprompt.io.stores import EntityDataStore, VectorDataStore
 from funkyprompt.io.stores.VectorDataStore import QueryOptions
 from funkyprompt.io.stores import AbstractStore
@@ -58,7 +59,7 @@ class AgentBase:
                 1. Otherwise, start by stating your strategy as it is important to use the right functions - can search for functions to solve the problem
                 2. The functions provide details about parameters and any complex types that need to be passed as arguments 
                 3. Observe functions that you have tried and do not repeatedly call the same functions with the same arguments - that is usually pointless.
-                4. Finish by stating a) your answer, b) your confidence in your answer and c) the specific strategy you used to search
+                4. Your response should be one level JSON format - including a) your "answer" which just be unstructured text, b) your "confidence" as a score from 0 to 100  and c) the specific "strategy" you employed to search
                 """
 
     USER_HINT = """"""  # """You must return the strategy that you carefully considered in addition to your answer and your confidence in your answer """
@@ -145,21 +146,34 @@ class AgentBase:
         """
 
         logger.info(f"fn={fn}, args={args}")
+        funkyprompt.add_span_attribute("function_name", fn.__name__)
 
         args = json.loads(args) if isinstance(args, str) else args
 
+        """
+        capture system fields
+        """
+        #############################
         sys_fields = {}
         # the LLM should give us this context but we remove it from the function call
         for sys_field in ["__confidence__", "__context__"]:
             if sys_field in args:
                 sys_fields[sys_field] = args.pop(sys_field)
+                if sys_field == "__confidence__":
+                    # audit the confidence
+                    funkyprompt.add_span_attribute(
+                        "fn_call_confidence", sys_fields[sys_field]
+                    )
 
         logger.debug(f"{sys_fields=}")
+        #############################
 
-        # open telemetry trace - create events for search
-        data = fn(**args)
-        # event = SearchEvent()
-
+        try:
+            data = fn(**args)
+        except Exception as ex:
+            # LEARNING: this is good for learning in place but we also need to audit and minimize this because its expensive
+            logger.warning(f"Failing to call function {ex}")
+            return f"You tried and failed to call this function - please try again. The error is {ex}"
         """
         experimental - refactor out
         we should come up with a cheap way to summarize
@@ -226,7 +240,10 @@ class AgentBase:
             f.name: f.function for f in cls._active_functions
         }
 
-        return {"result": "functions loaded"}
+        # LEARNING note we always should hint an action
+        return {
+            "result": "functions loaded - you should know call the correct function"
+        }
 
     def search_functions(
         cls,
@@ -491,6 +508,7 @@ class AgentBase:
         # pass in a session key or generate one
         session_key = session_key or str_hash()
         funkyprompt.add_span_attribute("funky_session_id", session_key)
+        funkyprompt.add_span_attribute("question", question)
 
         # store question for context - experimental because it guides the agent to use search (bias)
         if force_search:
@@ -537,7 +555,7 @@ class AgentBase:
                 messages=cls._messages,
                 # helper that inspects functions and makes the open ai spec
                 functions=functions_desc,
-                response_format=response_format,
+                response_format={"type": "json_object"},
                 function_call="auto",
             )
 
@@ -545,6 +563,16 @@ class AgentBase:
             logger.debug(response_message)
             function_call = response_message.function_call
             if function_call:
+                # TODO catch when the function is not loaded and tell the agent they made a mistake
+                if function_call.name not in cls._active_function_callables:
+                    cls._messages.append(
+                        {
+                            "role": "user",
+                            "name": f"check_loaded_functions",
+                            "content": f"""Error: You have tried to call the function {function_call.name} but you have not yet loaded it. You need to either search for functions or list functions and then load them by name using the provided functions. Go on, you can do it!""",
+                        }
+                    )
+                    continue
                 fn = cls._active_function_callables[function_call.name]
                 args = function_call.arguments
                 # find the function context for passing to invoke when function names not enough
@@ -588,21 +616,46 @@ class AgentBase:
             response_callback(response_message.content)
 
         """
-        dump everything to history
+        dump everything to history + parse out stuff 
         """
+
+        response_data = json.loads(
+            response_message.content or '{ "STATUS": "EMPTY RESPONSE" }'
+        )
+        if isinstance(response_data, list):
+            if len(response_data) > 1:
+                raise Exception("We are not handling multiple question responses yet!!")
+
+            response_data = response_data[0]
+
+        confidence = response_data["confidence"]
+
+        funkyprompt.add_span_attribute(
+            "response_confidence",
+            confidence,
+        )
         cls._dump(
             name=f"run{str_hash()}",
             question=question,
+            # i will still use this
             response=response_message.content,
             session_key=session_key,
             user_context=user_context,
             channel_context=channel_context,
+            response_agents_confidence=confidence,
         )
 
-        return response_message.content
+        return response_data
 
     def _dump(
-        cls, name, question, response, session_key, user_context, channel_context
+        cls,
+        name,
+        question,
+        response,
+        session_key,
+        user_context,
+        channel_context,
+        response_agents_confidence,
     ):
         """
         dump the session to the store
@@ -625,6 +678,7 @@ class AgentBase:
             user_id=user_context or "",
             channel_context=channel_context or "",
             content=json.dumps({"question": question, "response": response}),
+            response_agents_confidence=response_agents_confidence,
         )
 
         cls._audit_store.add(record)
