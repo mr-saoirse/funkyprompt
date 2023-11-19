@@ -32,7 +32,7 @@ For this section set an alias to funky prompt called "fp" as described in the in
 
 {% code overflow="wrap" %}
 ```bash
-fp ingest page --url "https://www.gutenberg.org/files/20748/20748-h/20748-h.htm" -n FairyTales
+fp data add  --url "https://www.gutenberg.org/files/20748/20748-h/20748-h.htm" -n FairyTales
 ```
 {% endcode %}
 
