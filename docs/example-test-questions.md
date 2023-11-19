@@ -8,9 +8,11 @@ what is the capital of ireland
 
 Using dummy library functions to show chaining and function loading
 
+{% code overflow="wrap" %}
 ```
-"Use library functions to determine what a person John@gmail.com would do if their favourite color is Gold
+Use library functions to determine what a person John@gmail.com would do if their favourite color is Gold
 ```
+{% endcode %}
 
 A hint to look for a book and then get the answer (needs Books ingested)
 
