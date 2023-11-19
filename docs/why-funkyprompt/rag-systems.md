@@ -52,7 +52,7 @@ fp agent interpret -q "Who was sinbad and where did he retire?"
 
 **Structured Data**
 
-In one respect, unstructured data is more interesting. This is how we load tonnes of arbitrary text into our systems and let the agent figure it out. However, _types_ play an enormous role in `funkyprompt` , firstly as a way to guide agents and secondly as a way to store columnar data that is used in type systems. Actually even the unstructured data is represented as a Pydantic type called `AbstactContentModel` which describes how to embed and store the data in the vector store. However, more generally, we can ingest arbitrary types into our system. Lets consider scraping structured types with some quantitative data from a website in three steps.
+In one respect, unstructured data is more interesting. This is how we load tonnes of arbitrary text into our systems and let the agent figure it out. However, _types_ play an enormous role in `funkyprompt` , firstly as a way to guide agents and secondly as a way to store columnar data that is used in type systems. Actually even the unstructured data is represented as a Pydantic type called `AbstactContentModel` which describes how to embed and store the data in the vector store. However, more generally, we can ingest arbitrary types into our system. Lets consider scraping structured types with some quantitative data from a website.
 
 _1 Initialize the type with a sample_
 
