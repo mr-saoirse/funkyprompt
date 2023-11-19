@@ -2,7 +2,7 @@
 description: Building on the power of a standard for observability
 ---
 
-# Open Telemetry
+# OpenTelemetry support
 
 We believe that [OpenTelemetry](https://opentelemetry.io/) is one of the most important initiatives in tech today. Observability is become increasingly important as software ecosystems evolve and standardization is particular important here. By leveraging OpenTelemetry, funkyprompt gets a lot of powerful auditing functionality for free while also allowing for metrics, logging and traces to be exported to third party collectors.&#x20;
 
@@ -13,7 +13,7 @@ If you run a session e.g.
 ```python
 import funkyprompt
 #replace the question for any functions or stores you have loaded
-funkyprompt.agent("what function can you used for books")
+funkyprompt.agent("what function can you use for books")
 ```
 
 For free we trace the basic execution calls - a bare bones one is shown here just to illustrate how the spans are chained. We can enrich this as weill be discussed below. In this case we run an interpreter session which spans a span child to invoke functions which in turn runs a vector search. You can see the shared trace id and the parent child relationships between span ids. We also shown one custom attribute on the parent i.e. the `funky_session_id` and this will be linked to the audited agent conversation (that is stored in the InterpreterSession vector store).
