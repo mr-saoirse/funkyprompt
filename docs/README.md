@@ -6,15 +6,15 @@ description: The best prompts are no prompts
 
 The LLM and LLM tool space is noisy so we hesitantly introduce a new yet simple tool into this space. The goal is to focus on _powerful predictability over federated data_ when building agent systems. We want to be able to gradually _engineer_ increasingly complex systems without sacrificing determinism as we combine LLMs with our code and data.
 
-`funkyprompt` takes the stance that this is done by respecting the interface between (a) the LLM (such as OpenAI chat completions with functions) and (b) everything else i.e. our code.&#x20;
+`funkyprompt` takes the stance that this is done by respecting the evolving interface between the LLM (such as OpenAI chat completions with functions) and everything else i.e. our code.&#x20;
 
 {% hint style="info" %}
-If you ask yourself what is the hard part of building data-driven agent systems your answer might span from (a) improving LLMs towards AGI, (b) controlling and guiding  agents and multi-agents and (c) engineering data and interfaces. Funkyprompt deals with (c). Moreover, unlike a world where we have one or two monolithic databases or sources, it considers how to easily create many specialist stores and wire them together. We see this as an isolated critical and tricky part of building agent systems.&#x20;
+If you ask yourself what is the hard part of building data-driven agent systems your answer might span from (a) improving LLMs towards AGI, (b) controlling and guiding  agents and multi-agents and (c) engineering data and interfaces. Funkyprompt deals with (c). It considers how to easily create many specialist stores wire them together in agent systems. We see this as an isolated critical part of building agent systems.&#x20;
 {% endhint %}
 
-`funkyprompt` works by exploring how we can write code i.e. functions  as we normally would, with typing and docstrings. It tries to avoid tinkering with prompts  and yet still create powerful agent systems.  At the core we run a _single interpreter loop_ that interfaces between our code to the LLM. It tries to solve problems, plan and answering questions by calling out to supplied functions. It is a simple pattern that subsumes zero shot, conversational, planning and multi agent systems in a purely functional way.&#x20;
+`funkyprompt` works by exploring how we can write code i.e. functions as we normally would, with _typing_ and _docstrings_ and make it easy for agents to use them to find the data and behaviors they need. It tries to avoid tinkering with prompts while still create powerful and dynamic agent systems.  At the core we run a _single interpreter loop_ that interfaces between our code to the LLM. It tries to solve problems, plan and answer questions by calling out to supplied functions. It is a simple pattern that subsumes zero shot, conversational, planning and multi agent systems in a purely functional way. Providers of LLMs such as OpenAI will increasingly abstract their systems and as they do, we will want a fully managed and searchable registry of functions to build agent systems.&#x20;
 
-The `funkyprompt` library provides tools for understanding how the LLM inspects our functions and plans. This is all data over data. The library makes it easy to ingest data and experiment with building agent systems over data. &#x20;
+The `funkyprompt` library provides tools for understanding how the LLM inspects our functions and plans. The library makes it easy to ingest data and experiment with building agent systems over data. &#x20;
 
 ***
 
