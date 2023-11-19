@@ -80,7 +80,7 @@ class AgentBase:
                 describe_function(cls.search_functions),
                 describe_function(cls.list_library_functions),
                 describe_function(cls.request_library_functions),
-                # describe_function(cls.describe_visual_image),
+                describe_function(cls.describe_visual_image),
             ]
         cls._active_functions = []
         cls._audit_store = VectorDataStore(
@@ -413,7 +413,7 @@ class AgentBase:
         When calling this function you should split the url out of the question and pass a suitable question based on the user question
 
         **Args**
-            url: the uri to the image typically on s3://. Can be presigned or not
+            url: the url to the image
             question: the prompt to extract information from the image
         """
         # todo -

@@ -73,7 +73,7 @@ class AbstractModel(BaseModel):
             # field = Field (t, None, is_key=True) if name == key_field else Field
             return (t, None)
 
-        namespace = namespace or cls.namespace
+        namespace = namespace or cls.__entity_namespace__
         fields = map_field_types_from_pa_schema(py_arrow_schema)
         fields = {k: _Field(k, v) for k, v in fields.items()}
         return create_model(name, **fields, __module__=namespace, __base__=cls)

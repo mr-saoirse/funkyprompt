@@ -15,12 +15,22 @@ class ColumnarDataStore(AbstractStore):
     STORE_DIR = "columnar-store"
 
     def __init__(cls, model: AbstractModel, description):
+        super().__init__(model=model, description=description)
         cls._model = model
         cls._db = DuckDBClient()
         cls._table_path = f"{STORE_ROOT}/{cls.STORE_DIR}/{cls._model.__entity_namespace__}/{cls._model.__entity_name__}/parts/0/data.parquet"
         cls._description = description
-        cls._enums = cls._db.inspect_enums(cls._table_path)
-        cls._fields = cls._db.probe_field_names(cls._table_path)
+        cls._load_table_metadata()
+
+    def _load_table_metadata(cls):
+        cls._enums = (
+            cls._db.inspect_enums(cls._table_path) if fs.exists(cls._table_path) else {}
+        )
+        cls._fields = (
+            cls._db.probe_field_names(cls._table_path)
+            if fs.exists(cls._table_path)
+            else []
+        )
 
     def load(self, limit=None, lazy=False):
         """
@@ -76,6 +86,9 @@ class ColumnarDataStore(AbstractStore):
                 if mode != "overwrite"
                 else fs.write(self._table_path, records)
             )
+        # reload for query
+        self._load_table_metadata()
+
         return records
 
     def run_search(
@@ -85,6 +98,7 @@ class ColumnarDataStore(AbstractStore):
     ):
         """
         Perform the columnar data search for the queries directly on the store. This store is used for answering questions of a statistical nature about the entity.
+        Some special links etc like image url may be in the data.
 
         **Args**
             question: supply a question about data in the store

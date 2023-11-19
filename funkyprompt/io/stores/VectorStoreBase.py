@@ -45,6 +45,7 @@ class VectorDataStore(AbstractStore):
             store_vector: a vectorized description of how and when to use the store
 
         """
+        super().__init__(model=model, description=description)
         cls._model = model
         cls._description = description
         cls._store_vector = store_vector
