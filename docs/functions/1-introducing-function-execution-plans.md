@@ -6,6 +6,8 @@ description: How we audit and visualize function call planning and execution
 
 We want to understand how the LLM understands the function repertoire that we provide it. We want to tinker with the questions to see what it _attends_ to and where it does well or trip up. We want to nail down _function signatures_ and make sure the LLM always respects them. We want to _audit_ and _visualize_ what is going on as we build in more complexity and more data without losing our way. Lets get into it!
 
+
+
 **In this section lets look at;**
 
 1 Ranking functions with respect to questions
@@ -14,7 +16,17 @@ We want to understand how the LLM understands the function repertoire that we pr
 
 ***
 
-A good way to begin is to ask the agent to construct a plan about what it _would_ do for some simple questions and a sample repertoire of functions.&#x20;
+{% hint style="info" %}
+The funkyprompt default agent has built in functions loaded. A good way to see what is going on is to look at these - this returns `FunctionDescription` objects
+
+```
+funkyprompt.agent._built_in_functions
+#you can look at one of these and call the .function_dict() 
+#that returns the function metadata that we pass to OpenAI
+```
+{% endhint %}
+
+A good way to begin understanding the power of functions is to ask the agent to construct a plan about what it _would_ do for some simple questions and a sample repertoire of functions.&#x20;
 
 Asking it to rank functions and construct execution graphs is a good way to see how we need to write function descriptions and the interpreter logic. For example, a methodology for how to describe and chain return types, how to know what sorts of outputs from what function are compatible as inputs to another function are all good things to see in the plan. Lets look at some examples.
 
