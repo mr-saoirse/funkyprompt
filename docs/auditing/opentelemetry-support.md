@@ -29,18 +29,20 @@ funkyprompt.tracer.span_processor.force_flush()
 {
     "name": "vector_store_search",
     "context": {
-        "trace_id": "0x88ddebf14b68fd1f6586f6b810f8a102",
-        "span_id": "0xb11e8e26816a6d6a",
+        "trace_id": "0xdefba26fe2f9db5d99bbf22b885a438b",
+        "span_id": "0xde50e061a6a79bf5",
         "trace_state": "[]"
     },
     "kind": "SpanKind.INTERNAL",
-    "parent_id": "0x86086836e78fdf2a",
-    "start_time": "2023-11-19T19:03:53.597995Z",
-    "end_time": "2023-11-19T19:03:53.843412Z",
+    "parent_id": "0x781dcf57688f931a",
+    "start_time": "2023-11-19T19:38:26.337120Z",
+    "end_time": "2023-11-19T19:38:26.570434Z",
     "status": {
         "status_code": "UNSET"
     },
-    "attributes": {},
+    "attributes": {
+        "store_name": "default/function-registry"
+    },
     "events": [],
     "links": [],
     "resource": {
@@ -53,18 +55,20 @@ funkyprompt.tracer.span_processor.force_flush()
 {
     "name": "agent_invoke_function",
     "context": {
-        "trace_id": "0x88ddebf14b68fd1f6586f6b810f8a102",
-        "span_id": "0x86086836e78fdf2a",
+        "trace_id": "0xdefba26fe2f9db5d99bbf22b885a438b",
+        "span_id": "0x781dcf57688f931a",
         "trace_state": "[]"
     },
     "kind": "SpanKind.INTERNAL",
-    "parent_id": "0xcfa5321ce149d686",
-    "start_time": "2023-11-19T19:03:53.594418Z",
-    "end_time": "2023-11-19T19:03:54.321380Z",
+    "parent_id": "0x61eebc7af4879ff0",
+    "start_time": "2023-11-19T19:38:26.333026Z",
+    "end_time": "2023-11-19T19:38:26.987353Z",
     "status": {
         "status_code": "UNSET"
     },
-    "attributes": {},
+    "attributes": {
+        "function_name": "search_functions"
+    },
     "events": [],
     "links": [],
     "resource": {
@@ -77,19 +81,20 @@ funkyprompt.tracer.span_processor.force_flush()
 {
     "name": "run_interpreter",
     "context": {
-        "trace_id": "0x88ddebf14b68fd1f6586f6b810f8a102",
-        "span_id": "0xcfa5321ce149d686",
+        "trace_id": "0xdefba26fe2f9db5d99bbf22b885a438b",
+        "span_id": "0x61eebc7af4879ff0",
         "trace_state": "[]"
     },
     "kind": "SpanKind.INTERNAL",
     "parent_id": null,
-    "start_time": "2023-11-19T19:03:50.330146Z",
-    "end_time": "2023-11-19T19:04:09.089549Z",
+    "start_time": "2023-11-19T19:38:24.374679Z",
+    "end_time": "2023-11-19T19:38:33.952425Z",
     "status": {
         "status_code": "UNSET"
     },
     "attributes": {
-        "funky_session_id": "fprF01DBB604F"
+        "funky_session_id": "fpr8CD8272BCD",
+        "question": "what function can you use for books"
     },
     "events": [],
     "links": [],
