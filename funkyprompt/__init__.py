@@ -32,8 +32,15 @@ from datetime import datetime
 utc_now_str = lambda: datetime.utcnow().isoformat()
 
 from .ops.observability import get_tracer
+from opentelemetry import trace
 
 tracer = get_tracer()
+
+
+def add_span_attribute(key, value):
+    current_span = trace.get_current_span()
+    current_span.set_attribute(key, value)
+
 
 from . import io, ops
 from funkyprompt.io.stores import FunkyRegistry

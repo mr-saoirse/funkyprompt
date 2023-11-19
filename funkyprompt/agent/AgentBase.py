@@ -8,8 +8,14 @@ from funkyprompt.agent.auditing import InterpreterSessionRecord
 from funkyprompt import describe_function
 from funkyprompt.model import AbstractModel, AbstractContentModel, NpEncoder
 from funkyprompt.model.func import FunctionDescription
-from funkyprompt import logger, str_hash, utc_now_str, FunkyRegistry
+from funkyprompt import (
+    logger,
+    str_hash,
+    utc_now_str,
+    FunkyRegistry,
+)
 from functools import partial
+import funkyprompt
 
 DEFAULT_MODEL = "gpt-4-1106-preview"  #  "gpt-4"  # has a 32k context or 8k
 VISION_MODEL = "gpt-4-vision-preview"
@@ -125,6 +131,7 @@ class AgentBase:
         with open(file) as f:
             return f.read()
 
+    @funkyprompt.tracer.start_as_current_span("agent_invoke_function")
     def invoke(
         cls,
         fn: typing.Callable,
@@ -452,6 +459,7 @@ class AgentBase:
         return cls.run(*args, **kwargs)
 
     # open telemetry trace
+    @funkyprompt.tracer.start_as_current_span("run_interpreter")
     def run(
         cls,
         question: str,
@@ -482,6 +490,7 @@ class AgentBase:
         """
         # pass in a session key or generate one
         session_key = session_key or str_hash()
+        funkyprompt.add_span_attribute("funky_session_id", session_key)
 
         # store question for context - experimental because it guides the agent to use search (bias)
         if force_search:

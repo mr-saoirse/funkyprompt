@@ -3,6 +3,7 @@ from funkyprompt.model import AbstractModel
 import typing
 from tqdm import tqdm
 from funkyprompt.io.clients.redis import RedisClient
+from funkyprompt import tracer
 
 
 def EntityDataStoreAny():
@@ -109,6 +110,7 @@ class EntityDataStore(AbstractStore):
 
         return value
 
+    @tracer.start_as_current_span("columnar_store_search")
     def run_search(self, keys: typing.List[str]):
         """
         use this function when you need to lookup entity attributes or find out more about some codes, skus, names or identifiers

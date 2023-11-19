@@ -19,7 +19,8 @@ def get_tracer(name=TRACER_NAME_OTEL):
     resource = Resource(attributes={SERVICE_NAME: SERVICE_NAME_OTEL})
     # TODO load providers from environment
     provider = TracerProvider(resource=resource)
-    processor = BatchSpanProcessor(ConsoleSpanExporter())
+    # adding a really big delay because we can just pull the state at the end rather than see lots of logging
+    processor = BatchSpanProcessor(ConsoleSpanExporter(), schedule_delay_millis=50000)
     provider.add_span_processor(processor)
     trace.set_tracer_provider(provider)
     tracer = trace.get_tracer(name)
