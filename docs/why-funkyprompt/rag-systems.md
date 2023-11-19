@@ -56,11 +56,61 @@ In one respect, unstructured data is more interesting. This is how we load tonne
 
 _1 Initialize the type with a sample_
 
-_2 Scrape some examples from the site into our RAG store_
+I picked a random Kaggle dataset for [Indonesian Food and Drink Nutrition](https://www.kaggle.com/datasets/anasfikrihanif/indonesian-food-and-drink-nutrition-dataset) and downloaded it. To explain how this works - the first thing we do is read some data. Here I am using Polars.
 
-_3 Ask some questions_
+```python
+from funkyprompt.model import AbstractModel
+import polars as pl
+df = pl.read_csv('/Users/sirsh/Downloads/nutrition.csv')
+```
 
+<figure><img src="../.gitbook/assets/image.png" alt=""><figcaption><p>sample data</p></figcaption></figure>
 
+In `funkyprompt` we need Pydantic objects and we can create a dynamic one with a name and namespace (default is "default")&#x20;
+
+{% code overflow="wrap" %}
+```python
+Model = AbstractModel.create_model_from_pyarrow('NutritionSample',     py_arrow_schema=df.to_arrow().schema)
+```
+{% endcode %}
+
+We can create a store from this Model and add the records&#x20;
+
+```python
+records = [Model(**r) for r in df.to_dicts()]
+store.add(records)
+```
+
+_2 Ask some questions_
+
+When working with stores, the first thing you can do is ask a direct question of the store which is just a search. In the case of the Columnar store, we actually use an LLM to turn the question into a query but the result is still just a search. The Vector store will just do a vector search on the content embeddings. We can test this new store with
+
+```
+store('What is Labu Air')
+```
+
+Now to try with an agent
+
+```
+#by default the store.as_agent disables fucntion search so we can test the store
+#but in this example we want to lookup the describe_image function
+ag = store.as_agent(allow_function_search=True)
+ag("How many calories does Labu Air have - please describe the image")
+```
+
+{% hint style="info" %}
+Answer:
+
+{% code overflow="wrap" %}
+```
+The calories in Labu Air (bottle gourd) are 17 calories per serving. The image associated with Labu Air shows three bottle gourds on a white wooden surface, with two whole gourds and one that is partially sliced into round pieces. The sliced pieces reveal the white flesh and seeds of the gourd, arranged in a fan shape. The gourds have a smooth, green skin and are cylindrical, tapering at the ends, against the contrasting rustic background of the wooden surface.
+
+To find this information, I initiated a search for functions that could help answer your query, considering that Labu Air could refer to a type of food or a term that might not be immediately familiar. Based on the functions provided, I called the "run_search" function to look up the caloric content of Labu Air. After obtaining the nutrition info, I used the "entity_key_lookup" function to find the associated image, which I then analyzed using the "describe_visual_image" function to provide a description of the image associated with Labu Air.
+```
+{% endcode %}
+{% endhint %}
+
+GPT-4 is able to insect images which is nice - so if we did not supply the describe\_image function then we might with some link get a response (somehow it tricks the are-you-human captcha on that link!). But above to control the image description via `funkyprompt` we also have a function that describes the image via the vision model that the agent can use. That is what you see in the response above.
 
 ***
 

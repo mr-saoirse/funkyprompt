@@ -17,7 +17,7 @@ reg = FunkyRegistry()
 reg.load() #this will list a Polars dataframe of functions
 ```
 
-<figure><img src="../.gitbook/assets/image.png" alt=""><figcaption><p>sample functions</p></figcaption></figure>
+<figure><img src="../.gitbook/assets/image (1).png" alt=""><figcaption><p>sample functions</p></figcaption></figure>
 
 The content of the function description is embedded for search. The \`metadata\` describes how to reconstruct the function. For example for these stores, a factory can be use to load the correct stores and expose its search function.
 
