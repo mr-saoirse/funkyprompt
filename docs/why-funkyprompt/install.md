@@ -12,7 +12,7 @@ You can do one of the following to start using funkyprompt.
 pip install funkyprompt
 ```
 
-2 Or you can clone the latest code from the [repo](https://github.com/mr-saoirse/funkyprompt) and use [Poetry](https://python-poetry.org/) to build and install.&#x20;
+2 Or (recommended) you can clone the latest code from the [repo](https://github.com/mr-saoirse/funkyprompt) and use [Poetry](https://python-poetry.org/) to build and install.&#x20;
 
 ```bash
 #from within the repo folder run commands like these
