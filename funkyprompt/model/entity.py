@@ -5,6 +5,7 @@ import funkyprompt
 from funkyprompt.model import EmbeddingFunctions, map_field_types_from_pa_schema
 import re
 import numpy as np
+import json
 
 
 class AbstractModel(BaseModel):
@@ -92,6 +93,7 @@ class AbstractContentModel(LanceModel, AbstractModel):
     # the depth in a text tree. 0 is original content, increasing depth splits text and negative depth summarizes
     aperture: int = 0
     refs: typing.List[str] = []
+    document: str = ""
 
     # this is a convenience for testing for now - todo inspect the embedding and embed the content if its blank
     @model_validator(mode="before")
@@ -171,6 +173,10 @@ class SchemaOrgVectorEntity(AbstractContentModel):
         # this is just for testing
         for key in values.keys():
             values[key] = str(values[key])
+
+        # todo - here we will just dump everything for now
+        values["content"] = json.dumps(values, default=str)
+
         return values
 
     @staticmethod
@@ -224,12 +230,9 @@ class SchemaOrgVectorEntity(AbstractContentModel):
             if not SchemaOrgVectorEntity.should_exclude(k, exclude_fields_snake_case)
         }
 
-        if "text" not in fields:
-            fields["text"] = (str, "")
-
         if text_fields:
             pass  # add the validator
             # we need to add a validator to merge these fields into a text field
 
-        namespace = namespace or cls.namespace
+        namespace = namespace or cls.__entity_namespace__
         return create_model(name, **fields, __module__=namespace, __base__=cls)

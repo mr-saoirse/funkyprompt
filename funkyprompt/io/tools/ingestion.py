@@ -10,6 +10,7 @@ from funkyprompt.model import AbstractContentModel, InstructEmbeddingContentMode
 from funkyprompt.io.stores import ColumnarDataStore
 from funkyprompt.model import AbstractModel
 from funkyprompt.io.stores import VectorDataStore
+import typing
 
 DEFAULT_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36"
@@ -19,12 +20,6 @@ DEFAULT_HEADERS = {
 def iter_doc_pages(file, **kwargs):
     """
     simple document reader - want to expand this to model text in more interesting ways
-
-    BC = AbstractVectorStoreEntry.create_model("BookChapters")
-    store = VectorDataStore(BC)
-    for i, page in enumerate(iter_doc_pages(file)):
-        record = BC(name = "LongitudePage{i}", text=page)
-        store.add(record)
 
     """
 
@@ -50,13 +45,18 @@ def iter_doc_pages(file, **kwargs):
             yield process_page(page["blocks"])
 
 
-def ingest_pdf(name, file, embedding_provider="open-ai", doc_id=None):
+def ingest_pdf(
+    model: AbstractContentModel,
+    file: str,
+    doc_id: str = None,
+):
     """
     To ingest a pdf choose an embedding, a file and name of the store to add it to.
     It is advisable to pick a doc id to group sections by but can be the pdf file name
 
+
     **Args**
-        name: the name of the store
+        model: the model to use e,g, Model = InstructEmbeddingContentModel.create_model('NewBookChapters')
         file: the name of the pdf (full path)
         embedding_provider: the embedding to use (must map what is already in store for non empty store) open-ai|instruct
         doc_id: a section or book name
@@ -66,33 +66,21 @@ def ingest_pdf(name, file, embedding_provider="open-ai", doc_id=None):
         # default id
         doc_id = file.split("/")[-1].split(".")[0].replace(" ", "_")
 
-    # pdf ingestion use case - provide model
-    Factory = (
-        InstructEmbeddingContentModel
-        if embedding_provider == "instruct"
-        else AbstractContentModel
-    )
-    Model = Factory.create_model(name)
-    store = VectorDataStore(Model)
+    # description does not matter here
+    store = VectorDataStore(model, description=f"Ingesting book {file}")
     doc_hash = funkyprompt.str_hash(file)
     records = []
     funkyprompt.logger.debug(f"Reading document")
     for i, page in enumerate(iter_doc_pages(file)):
-        record = Model(name=f"{doc_hash}{i}", content=page, doc_id=doc_id)
+        if i % 100 == 0 and i > 0:
+            funkyprompt.logger.debug(f"inserting batch")
+            store.add(records)
+            records = []
+        record = model(name=f"{doc_hash}{i}", content=page, document=doc_id)
         records.append(record)
-
+    funkyprompt.logger.debug(f"inserting remaining document")
     store.add(records)
-
-
-def ingest_pdf_using_instruct_embedding(name, file):
-    """
-    ingest with a instruct embedding using conventional
-
-    **Args**
-        name: the name of the store - will be suffixed with -instruct with this utility method
-        file: pdf file to ingest
-    """
-    return ingest_pdf(name=f"{name}-instruct", file=file, embedding_provider="instruct")
+    funkyprompt.logger.debug(f"done")
 
 
 def ingest_arrow(name, file, key_field, embedding_provider="open-ai"):
@@ -176,11 +164,11 @@ def site_map_from_sample_url(url, first=True):
 
 def iterate_types_from_headed_paragraphs(
     url: str,
-    entity_type: AbstractContentModel,
+    model: AbstractContentModel,
     name: str = None,
     namespace: str = None,
     min_text_length=10,
-):
+) -> typing.Generator[AbstractContentModel, AbstractContentModel, None]:
     """This is a simple scraper. Something like Unstructured could be used in future to make this better
 
     for example
@@ -212,7 +200,7 @@ def iterate_types_from_headed_paragraphs(
         # fallback - crude
         element = soup.find_all(lambda tag: tag.name in ["body"])
         for body in element:
-            ft = entity_type(name=url, content=body.text, doc_id=url)
+            ft = model(name=url, content=body.text, document=url)
             yield ft
     else:
         current = "general"
@@ -232,11 +220,11 @@ def iterate_types_from_headed_paragraphs(
                 part_index += 1
                 key = name.replace(" ", "-") + "-" + str(part_index)
                 if len(element.text) > min_text_length:
-                    ft = entity_type(name=key, content=element.text, doc_id=name)
+                    ft = model(name=key, content=element.text, doc_id=name)
                     yield ft
 
 
-def _ingest_web_page(url):
+def _ingest_web_page(url: str, model: AbstractContentModel):
     """
     experimental simple page summarizer helper - dumb concatenation into max length
     """
@@ -258,20 +246,26 @@ def _ingest_web_page(url):
         return result
 
     parts = [
-        p.text
-        for p in iterate_types_from_headed_paragraphs(url, name=url.split(":")[-1])
+        p.content
+        for p in iterate_types_from_headed_paragraphs(
+            url, model=model, name=url.split(":")[-1]
+        )
     ]
     parts = concatenate_texts(parts)
     return parts
 
 
-def ingest_page_to_model(url, model_name):
-    data = _ingest_web_page(url)
-    Model = InstructEmbeddingContentModel.create_model(model_name)
-    store = VectorDataStore(Model)
+def ingest_page_to_model(
+    url: str, model: AbstractContentModel, description: str = None
+):
+    data = _ingest_web_page(url, model=model)
+
+    store = VectorDataStore(
+        model, description=description or f"Data scraped from {url}"
+    )
     records = []
     for i, record in enumerate(data):
-        record = Model(name=f"{url}_{i}", content=record, doc_id=url)
+        record = model(name=f"{url}_{i}", content=record, document=url)
         records.append(record)
     store.add(records)
     return store
@@ -444,19 +438,36 @@ class SimpleJsonLDSpider:
                                     yield page
 
 
-def simple_scrape_links(url):
+def simple_scrape_links_into_model(
+    url: str, model: AbstractContentModel, description=None
+):
+    """
+    simple util to scrape some simple pages into the model
+
+    url = 'http://www.paulgraham.com/articles.html'
+    Model =    InstructEmbeddingContentModel.create_model('NewBookChapters')
+    """
+    records = []
+    store = VectorDataStore(
+        model, description=description or f"Data scraped from {url}"
+    )
+    logger.info(f"Scraping site...")
+    for url, i, text in simple_scrape_links(url, model=model):
+        if i % 100 == 0 and i > 0:
+            logger.info(f"adding batch to store site...")
+            store.add(records)
+            records = []
+        record = model(name=f"{url}_{i}", document=url, content=text)
+        records.append(record)
+    logger.info(f"adding final batch to store site...")
+    store.add(records)
+    return store
+
+
+def simple_scrape_links(url: str, model: AbstractContentModel):
     """
     url = 'http://www.paulgraham.com/articles.html'
 
-    Example:
-
-    Model = InstructAbstractVectorStoreEntry.create_model('PaulGraham')
-
-    records = []
-    for url,i,text in simple_scrape_links('http://www.paulgraham.com/articles.html'):
-        record = Model(name=f"{url}_{i}", doc_id=url, text=text)
-        records.append(record)
-    len(records)
     """
 
     page = requests.get(url=url, headers=DEFAULT_HEADERS)
@@ -465,7 +476,7 @@ def simple_scrape_links(url):
     urls = [urljoin(url, tag["href"]) for tag in elements]
 
     for url in urls:
-        for i, part in enumerate(_ingest_web_page(url)):
+        for i, part in enumerate(_ingest_web_page(url, model=model)):
             yield url, i, part
 
 
@@ -482,7 +493,7 @@ def load_example_foody_guides(
     loads new york guides data samples
     note the constructor/factory might be needed to map objects
 
-    we can make this a general function but we need much better scheam tools first (and schema migration tools)
+    we can make this a general function but we need much better schema tools first (and schema migration tools)
 
     """
     from funkyprompt.io.tools.ingestion import SimpleJsonLDSpider
@@ -512,7 +523,10 @@ def load_example_foody_guides(
 
 
 def ingest_site(
-    name: str, domain: str, site_map_or_index: str, prefix_filter: str = None
+    model: AbstractContentModel,
+    domain: str,
+    site_map_or_index: str,
+    prefix_filter: str = None,
 ):
     """
     without doing anything to complex, creating small snippets for use cases and will refactor later
@@ -536,13 +550,12 @@ def ingest_site(
         # for now we will use the found collection
         pass
 
-    Model = InstructEmbeddingContentModel.create_model(name=name)
     records = []
     for url in s._found:
-        for i, p in enumerate(_ingest_web_page(url)):
-            record = Model(name=f"{url}_{i}", content=p, doc_id=url)
+        for i, p in enumerate(_ingest_web_page(url, model=model)):
+            record = model(name=f"{url}_{i}", content=p, document=url)
             records.append(record)
 
-    store = VectorDataStore(Model)
+    store = VectorDataStore(model)
     store.add(records)
     return store

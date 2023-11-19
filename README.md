@@ -6,7 +6,7 @@
 - if you want to use your own data, you also need to organize those data
 - you need your program to scale both in terms of managed complexity and data size
 
-Today this is tricky for a bunch of reasons and `funkyprompt`` takes a disciplined and thoughtful approach to evaluating a new way to build data stores and a new way to write programs.
+Today this is tricky for a bunch of reasons and `funkyprompt` takes a disciplined and thoughtful approach to evaluating a new way to build data stores and a new way to write programs.
 
 `funkyprompt` is a functionally orientated way to make prompts for speaking with LLMs. As LLMs and building applications such as Retrieval Augmented Generation (RAG) systems exploded in activity, the ecosystem and tooling evolved incredibly quickly. `funkyprompt` takes a disciplined approach to constructing applications with one or multiple agents, by adhering to existing programming patterns, particularly functional ones, to construct applications.
 
