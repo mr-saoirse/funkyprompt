@@ -9,7 +9,7 @@ Software and data are not really separable these days. The motivation for buildi
 One useful thing about `funkyprompt` is the RAG is essentially "built in". This is because we use blob-storage-centric data stores so that everything is "embedded".&#x20;
 
 {% hint style="info" %}
-A note about embedding databases and S3 blob storage:
+A note about embedding databases (with/out S3 blob storage): embedded databases are very useful and perhaps underappreciated. For experimenting with data it is extremely convenient to simply create data stores at file paths locally or on S3. Funkyprompt starts with Pydantic models that have a name and namespace and these determine the paths. This gives the illusion of a distributed object store for columnar (uses DuckDB and parquet file format) or vector search (use LanceDB and the lance file format). For testing RAG stores and as the community learns what works well for LLMs, it is convenient to be able to quickly create or delete data in the shape and schema you want. This model scales beyond prototyping if you have a good data management layer.
 {% endhint %}
 
 If you are as excited about embedded (vector) databases as we are, you will love `funkyprompt`
