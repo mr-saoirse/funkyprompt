@@ -12,6 +12,7 @@
 * [2 Running and auditing plan execution](functions/2-running-and-auditing-plan-execution.md)
 * [3 Saving plans and motifs](functions/3-saving-plans-and-motifs.md)
 * [4 What happens when we scale](functions/4-what-happens-when-we-scale.md)
+* [Mixing and matching](functions/mixing-and-matching.md)
 
 ## Stores
 

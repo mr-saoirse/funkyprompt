@@ -27,4 +27,6 @@ Where is is the H-4 clock today
 Examples of selecting and planning for functions
 
 ```
+Name 7 distinct functions that are available to you?
+
 ```
