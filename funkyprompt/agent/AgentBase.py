@@ -59,7 +59,7 @@ class AgentBase:
                 1. Otherwise, start by stating your strategy as it is important to use the right functions - can search for functions to solve the problem
                 2. The functions provide details about parameters and any complex types that need to be passed as arguments 
                 3. Observe functions that you have tried and do not repeatedly call the same functions with the same arguments - that is usually pointless.
-                4. Your response should be one level JSON format - including a) your "answer" which just be unstructured text, b) your "confidence" as a score from 0 to 100  and c) the specific "strategy" you employed to search
+                4. Your response should be one level JSON format - including a) your "answer" which just be unstructured text, b) your "confidence" that you have completely answered the users question as a score from 0 to 100  and c) the specific "strategy" you employed to search
                 """
 
     USER_HINT = """"""  # """You must return the strategy that you carefully considered in addition to your answer and your confidence in your answer """
@@ -108,6 +108,45 @@ class AgentBase:
         )
         # when we reload functions we can keep the baked functions and restore others - it may be we bake the ones pass in call but TBD
         cls._baked_functions_length = len(cls._built_in_functions)
+
+    def on_fail_function_load(cls, function_call):
+        """
+        if we try to run a function that is in a dictionary but fail, what do we say to the agent
+        """
+        cls._messages.append(
+            {
+                "role": "user",
+                "name": f"check_loaded_functions",
+                "content": f"""Error: You have tried to call the function {function_call.name} but you have not yet loaded it. You need to either search for functions or list functions and then load them by name using the provided functions. Go on, you can do it!""",
+            }
+        )
+
+    def on_successful_function_call(cls, function_call, function_response):
+        """
+        when we call a function what do we tell  agent
+        """
+        logger.debug(f"Response: {function_response}")
+        cls._messages.append(
+            {
+                "role": "user",
+                "name": f"{str(function_call.name)}",
+                "content": json.dumps(function_response, cls=NpEncoder, default=str),
+            }
+        )
+
+    def on_reflection(cls):
+        """
+        if we want to consider the status of out answering
+        """
+        cls._messages.append(
+            {
+                "role": "user",
+                "name": f"check_status",
+                "content": """With the exception of describing images, If you are not confident in the scope and specificity of your answer, 
+                        use the `lookup_strategy`  and `revise_functions` functions to change course .
+                        However you should give up if you are calling the same function again and again and assume the answer is sufficient""",
+            }
+        )
 
     def load_strategy(cls, type: str = "Search"):
         """
@@ -225,7 +264,7 @@ class AgentBase:
         these functions are not made available unless you subsequently call request_functions
 
         **Args**
-            function_names: list of fully qualified functions
+            function_names: list of fully qualified functions that you wish to load for use
         """
 
         logger.debug(f"Requesting to load functions {function_names}")
@@ -565,41 +604,18 @@ class AgentBase:
             if function_call:
                 # TODO catch when the function is not loaded and tell the agent they made a mistake
                 if function_call.name not in cls._active_function_callables:
-                    cls._messages.append(
-                        {
-                            "role": "user",
-                            "name": f"check_loaded_functions",
-                            "content": f"""Error: You have tried to call the function {function_call.name} but you have not yet loaded it. You need to either search for functions or list functions and then load them by name using the provided functions. Go on, you can do it!""",
-                        }
-                    )
+                    cls.on_fail_function_load(function_call)
                     continue
                 fn = cls._active_function_callables[function_call.name]
                 args = function_call.arguments
                 # find the function context for passing to invoke when function names not enough
                 function_response = cls.invoke(fn, args)
 
-                logger.debug(f"Response: {function_response}")
-                cls._messages.append(
-                    {
-                        "role": "user",
-                        "name": f"{str(function_call.name)}",
-                        "content": json.dumps(
-                            function_response, cls=NpEncoder, default=str
-                        ),
-                    }
-                )
+                cls.on_successful_function_call(function_call, function_response)
 
             if extra_reflection:
                 # candidate not core - experimental - could also create a dynamic check status function - this is treated almost like a function by the agent
-                cls._messages.append(
-                    {
-                        "role": "user",
-                        "name": f"check_status",
-                        "content": """With the exception of describing images, If you are not confident in the scope and specificity of your answer, 
-                        use the `lookup_strategy`  and `revise_functions` functions to change course .
-                        However you should give up if you are calling the same function again and again and assume the answer is sufficient""",
-                    }
-                )
+                cls.on_reflection()
             if response.choices[0].finish_reason == "stop":
                 break
 
@@ -619,9 +635,7 @@ class AgentBase:
         dump everything to history + parse out stuff 
         """
 
-        response_data = json.loads(
-            response_message.content or '{ "STATUS": "EMPTY RESPONSE" }'
-        )
+        response_data = json.loads(response_message.content)
         if isinstance(response_data, list):
             if len(response_data) > 1:
                 raise Exception("We are not handling multiple question responses yet!!")
@@ -683,7 +697,7 @@ class AgentBase:
 
         cls._audit_store.add(record)
 
-    def play_response(cls, text, voice="shimmer"):
+    def speak_response(cls, text, voice="shimmer"):
         """
         temp sample - on mac we can use afplay
         it would be better to split up and play parts probably

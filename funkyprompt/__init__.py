@@ -9,6 +9,13 @@ import uuid
 import hashlib
 from ._version import __version__
 from getpass import getuser
+from datetime import datetime
+from .ops.observability import get_tracer
+from opentelemetry import trace
+
+"""
+primary config
+"""
 
 USER_HOME = Path.home()
 DEFAULT_HOME = f"{USER_HOME}/.funkyprompt"
@@ -16,6 +23,10 @@ STORE_ROOT = os.environ.get("FP_STORE_HOME", DEFAULT_HOME).rstrip("/")
 VECTOR_STORE_ROOT_URI = f"{STORE_ROOT}/vector-store"
 COLUMNAR_STORE_ROOT_URI = f"{STORE_ROOT}/columnar-store"
 
+
+"""
+some basic global utils and init
+"""
 
 if not Path(DEFAULT_HOME).exists():
     Path(DEFAULT_HOME).mkdir(exist_ok=True, parents=True)
@@ -27,12 +38,12 @@ def str_hash(s=None, m=5, prefix="fpr"):
     return f"{prefix}{h}"
 
 
-from datetime import datetime
-
 utc_now_str = lambda: datetime.utcnow().isoformat()
 
-from .ops.observability import get_tracer
-from opentelemetry import trace
+
+"""
+set up some otel bits
+"""
 
 tracer = get_tracer()
 
@@ -41,6 +52,10 @@ def add_span_attribute(key, value):
     current_span = trace.get_current_span()
     current_span.set_attribute(key, value)
 
+
+"""
+setup some funkyprompt bits
+"""
 
 from . import io, ops
 from funkyprompt.io.stores import FunkyRegistry
