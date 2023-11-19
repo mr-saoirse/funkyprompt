@@ -26,9 +26,10 @@ app = typer.Typer()
 # test schema migration: does lance allow saving things that are not in schema?? in any case do the migration of new vars before or after
 
 data_app = typer.Typer()
-app.add_typer(
-    data_app, name="data", help="interact with rag stores [ingest|query|entity]"
-)
+app.add_typer(data_app, name="data", help="interact with rag stores [add|query|entity]")
+
+data_add_app = typer.Typer()
+app.add_typer(data_add_app, name="data_add", help="add data modes [webpage|pdf|site]")
 
 # k8s_app = typer.Typer()
 # app.add_typer(k8s_app, name="k8s", help="Use the spider to ingest data into the system")
@@ -181,12 +182,13 @@ def ingest_type(
 
 
 @data_app.command("add")
-def query(
+def add(
     name: str = typer.Option(None, "--name", "-n"),
-    site_url: str = typer.Option(None, "--url", "-i"),
+    url: str = typer.Option(None, "--url", "-i"),
     prefix_filter: typing.Optional[str] = typer.Option(None, "--filter", "-f"),
     batch_size: typing.Optional[int] = typer.Option(100, "--size", "-s"),
     schedule: typing.Optional[str] = typer.Option(None, "--cron", "-c"),
+    namespace: str = typer.Option("default", "--namespace", "-ns"),
 ):
     """
     create an index on a schedule to ingest data or do it once off without schedule
@@ -202,19 +204,43 @@ def query(
     add this by the API too - columnar store
     """
 
-    pass
+    from funkyprompt.model import AbstractContentModel
+    from funkyprompt.io import VectorDataStore
+    from funkyprompt.io.tools.ingestion import (
+        ingest_page_to_model,
+        iterate_types_from_headed_paragraphs,
+    )
+
+    # temporary
+
+    Model = AbstractContentModel.create_model(name, namespace=namespace)
+    store = VectorDataStore(Model, description=f"Ingested from {url}")
+
+    logger.debug(f"Ingesting {url} to {namespace}.{name}")
+    data = list(iterate_types_from_headed_paragraphs(url, Model))
+    store.add(data)
+    logger.debug(f"Ingested")
 
 
-@data_app.command("page")
+@data_add_app.command("webpage")
 def ingest_page(
     url: str = typer.Option(None, "--url", "-u"),
     store_name: str = typer.Option(None, "--name", "-n"),
+    namespace: str = typer.Option("default", "--namespace", "-ns"),
 ):
     """
     ingest a page at url into a named store...
 
     """
-    pass
+    from funkyprompt.model import AbstractContentModel
+    from funkyprompt.io import VectorDataStore
+    from funkyprompt.io.tools.ingestion import ingest_page_to_model
+
+    Model = AbstractContentModel(store_name, namespace=namespace)
+    store = VectorDataStore(Model, description=f"Ingested from {url}")
+
+    logger.debug(f"Ingesting {url} to {namespace}.{store_name}")
+    ingest_page_to_model(url=url, model=Model)
 
 
 """
