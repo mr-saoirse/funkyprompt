@@ -107,7 +107,7 @@ funkyprompt.tracer.span_processor.force_flush()
 }
 ```
 
-This is very powerful. As you talk to FunkyPrompt all these data can be collected and analyzed. For best results we show you how to set up on Observability Stack but there are some local testing work arounds too.&#x20;
+This is very powerful. As you talk to `FunkyPrompt` all these data can be collected and analyzed. For best results we show you how to set up an Observability Stack on K8s in the next section but there are some local workarounds too.&#x20;
 
 {% hint style="info" %}
 One of the top few investments we are making in FunkyPrompt is auditing. This is because we believe AI Whispering is more art than science right now and collecting data is important for turning it into science and achieving predictability.&#x20;
