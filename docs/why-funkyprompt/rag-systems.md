@@ -83,13 +83,13 @@ store.add(records)
 
 _2 Ask some questions_
 
-When working with stores, the first thing you can do is ask a direct question of the store which is just a search. In the case of the Columnar store, we actually use an LLM to turn the question into a query but the result is still just a search. The Vector store will just do a vector search on the content embeddings. We can test this new store with
+When working with stores, the first thing you can do is ask a direct question of the store which is just a search. In the case of the Columnar store, we actually use an LLM to turn the question into a query but the result is still just a search (Note a Vector store will just do a vector search on the content embeddings). We can test this new ColumnarDataStore directly as the question below is compiled as an SQL query which will just return a record in this case.
 
 ```
 store('What is Labu Air')
 ```
 
-Now to try with an agent
+Now to try with an agent, we can use the store's "as agent" function which will create the agent and bias it to use the provided function i.e. the store's `run_search` function.&#x20;
 
 ```
 #by default the store.as_agent disables fucntion search so we can test the store
@@ -110,7 +110,7 @@ To find this information, I initiated a search for functions that could help ans
 {% endcode %}
 {% endhint %}
 
-GPT-4 is able to insect images which is nice - so if we did not supply the describe\_image function then we might with some link get a response (somehow it tricks the are-you-human captcha on that link!). But above to control the image description via `funkyprompt` we also have a function that describes the image via the vision model that the agent can use. That is what you see in the response above.
+GPT-4 is able to inspect images which is nice - so if we did not supply `describe_visual_image` function then we might, with some luck, get a response (somehow it tricks the are-you-human captcha!). But to control the image description via `funkyprompt` we also have a function that describes the image via the vision model which the agent can use. That is what you see in the response above.
 
 ***
 
