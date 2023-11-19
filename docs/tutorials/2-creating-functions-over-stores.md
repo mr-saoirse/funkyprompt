@@ -11,7 +11,7 @@ In `funkyprompt` we can have different types of functions; `api` , `default` `st
 
 When creating a store like a vector store, when it is crated for the first time it will register the store in a registry. This registry is in fact just another vector-store that can be searched.&#x20;
 
-```
+```python
 from funkyprompt import FunkyRegistry
 reg = FunkyRegistry()
 reg.load() #this will list a Polars dataframe of functions
