@@ -44,7 +44,9 @@ d: FunctionDescription= describe_function(get_persons_favourite_thing_of_type)
 Calling `d.function_dict()` will provide a description in the format as used by [OpenAI functions](https://openai.com/blog/function-calling-and-other-api-updates). Note we build it in a special way e.g. adding Pydantic object schema into the descriptions.
 
 {% hint style="info" %}
-It seems nicer to add the object description into the parameter description directly but the LLM did not seem to do as well at the time of testing.
+It seems nicer to add the object description into the parameter description directly but the LLM did not seem to do as well at the time of testing.&#x20;
+
+Note there is a maximum function description length that OpenAI allows which we need to work within.
 {% endhint %}
 
 ````json
@@ -67,7 +69,7 @@ It seems nicer to add the object description into the parameter description dire
 }
 ````
 
-Here are three questions that illustrate the idea. try them for yourself (e.g. in a Jupyter notebook).&#x20;
+Here are three questions that illustrate the idea. Try them for yourself (e.g. in a Jupyter notebook).&#x20;
 
 ```python
 #first we ask a factual question.
