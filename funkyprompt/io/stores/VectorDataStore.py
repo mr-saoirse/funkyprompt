@@ -131,6 +131,7 @@ class VectorDataStore(AbstractStore):
         import pandas as pd
 
         query_options = query_options or QueryOptions()
+        funkyprompt.add_span_attribute("store_name", cls._model.__fullname__)
 
         # we dont have a case of passing empty predicates
         predicates = {k: v for k, v in predicates.items() if v}
