@@ -8,10 +8,22 @@ We support OpenTelemetry as a standard way to do metrics, tracing and logging. T
 * Functions (Function loading events in terms of context, function, distance sets
 * DataPoints (for each question context, the set of ids retrieved with any distance)
 
-Note that the last two are similar. Functions are just a special type of data. Generally we want to understand for a given session, with a master question, this divides into sub questions. For each of these sub questions, we want to understand what group of data are returned. For each data point we want its distance. This is something lile
+Note that the last two are similar. Functions are just a special type of data. Generally we want to understand for a given session, with a master question, this divides into sub questions. For each of these sub questions, we want to understand what group of data are returned. For each data point we want its distance. This is something like
 
 ```
 sub_context, [(ID,Distance), (ID,Distance), etc. ]
 ```
 
 After we collect all of these data we can use it to learn how best to organize stores. Organization means doing things like chunking content within stores or chunking stores themselves. Store chunking could mean split one store into many or many into one to optimize retrieval.&#x20;
+
+The [InterpretSessionRecord](https://github.com/mr-saoirse/funkyprompt/blob/main/funkyprompt/agent/auditing.py) type is used to record each interaction with the agent. These are combined with OpenTelemetry instrumentation. There are many ways to load stores but for example we can get a reference to the store from the built in agent
+
+```
+funkyprompt.agent._audit_store.load()
+```
+
+<figure><img src="../.gitbook/assets/image (3).png" alt=""><figcaption></figcaption></figure>
+
+***
+
+&#x20;

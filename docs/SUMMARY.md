@@ -22,6 +22,8 @@
 ## Auditing
 
 * [Overview](auditing/overview.md)
+* [Open Telemetry](auditing/open-telemetry.md)
+* [Setting up an Observability Stack](auditing/setting-up-an-observability-stack.md)
 
 ## Tutorials
 
