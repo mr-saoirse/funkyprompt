@@ -57,11 +57,11 @@ def query_store(
     """
     run a query against the store
     """
-    from funkyprompt.ops.entities import InstructAbstractVectorStoreEntry
+    from funkyprompt.model import InstructEmbeddingContentModel
     from funkyprompt.io.stores import VectorDataStore
 
     # todo proper loader by name - this assumes default namespace and instruct embedding
-    Model = InstructAbstractVectorStoreEntry.create_model(name=store)
+    Model = InstructEmbeddingContentModel.create_model(name=store)
     agent = VectorDataStore(Model).as_agent()
     result = agent(query)
     logger.info(result)

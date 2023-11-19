@@ -44,12 +44,14 @@ class AgentBase:
     #          You are evaluated on your ability to properly nest objects and name parameters when calling functions.
     # after considering your Search strategy.
 
-    PLAN = """  You are an intelligent entity that uses the supplied functions to answer questions 
-                If a question is made up multiple parts or concepts, split the concept up first into multiple questions and send each question to the best available function. It might not be the same function.
+    PLAN = """  You are an intelligent entity that uses the supplied functions to answer questions
+                If a question is made up multiple parts or concepts, split the concept up first into multiple questions and send each question to the best available function. 
+                
                 0. If the answer is something you already know from your training e.g. a well known fact, you should answer directly without consulting further functions.
-                1. Start by stating your strategy as it is important to use the right functions here. you can search for functions to solve the problem
-                2. The function descriptions might have some Pydantic object types, which will be described in the function descriptions, allowing you to use nested types as parameters. 
-                3. Finish by stating a) your answer, b) your confidence in your answer and c) the specific strategy you used to Search
+                1. Otherwise, start by stating your strategy as it is important to use the right functions - can search for functions to solve the problem
+                2. The functions provide details about parameters and any complex types that need to be passed as arguments 
+                3. Observe functions that you have tried and do not repeatedly call the same functions with the same arguments - that is usually pointless.
+                4. Finish by stating a) your answer, b) your confidence in your answer and c) the specific strategy you used to search
                 """
 
     USER_HINT = """"""  # """You must return the strategy that you carefully considered in addition to your answer and your confidence in your answer """
@@ -90,14 +92,19 @@ class AgentBase:
 
     def load_strategy(cls, type: str = "Search"):
         """
-        Lookup a particular type of strategy to help you answer the question
+        Lookup a particular type of strategy to help you answer the question IF you are struggling with your default approach
         For example Search strategy is very useful to match different types of functions and searches to the nature of the user question.
-        note, directly executing a function search might be a clear and obvious thing to do without consulting a strategy but for more intricate questions a strategy can be useful
+        You consider the following dimensions for search with respect to a user questions;
+                - Specificity: How specific is subject e.g. one specific entity or a broad range of things
+                - Scope: How narrow or broad is the scope e.g. does the user want a specific target answer or general information
+                - Contemporaneousness: is the information specific to the present moment, a specific mode or spread out in time.
 
         **Args**
           type: the type of strategy you seek - Search|etc.
 
         """
+
+        return """No further details"""
 
         file = ""
 
@@ -184,6 +191,8 @@ class AgentBase:
         """
 
         logger.debug(f"Requesting to load functions {function_names}")
+        # generally useful to trim off at the end
+        function_names = [f.split(".")[-1] for f in function_names]
         from funkyprompt.model.func import list_functions
 
         new_functions = [f for f in list_functions() if f.name in function_names]
@@ -268,28 +277,16 @@ class AgentBase:
             f.name: f.function for f in cls._active_functions
         }
 
-        # we return this so the agent can see it and then call it
-        functions = [
-            {
-                "callable_function_name": f.name,
-                # todo consider if we need some description or not
-                "distance_weight": f.weight,
-            }
-            for f in new_functions
-        ]
-
         return {
-            "functions": functions,
+            # "functions": functions,
+            "instruction": "New functions have now been added to your repertoire. You should review and call them now (based on the smallest distance) to try and learn more!",
             "summary": [
                 {
-                    "weighted_stores": [
-                        {
-                            # "store": f["store_name"],
-                            "distance_prefers_small": f["distance_weight"],
-                        }
-                        for f in functions
-                    ]
+                    "callable_function_name": f.name,
+                    # todo consider if we need some description or not
+                    "distance_weight": f.weight,
                 }
+                for f in new_functions
             ],
         }
 
@@ -454,7 +451,8 @@ class AgentBase:
         user_context=None,
         channel_context=None,
         response_callback=None,
-        extra_reflection=True,
+        extra_reflection=False,
+        force_search=True,
     ) -> dict:
         """
         run the interpreter loop based on the PLAN
@@ -471,6 +469,9 @@ class AgentBase:
         """
 
         # store question for context
+        if force_search:
+            # this can be a handy hint to add weight to using the functions
+            question = f"Search for {question}"
 
         cls._question = question
         cls._messages = [
@@ -494,7 +495,7 @@ class AgentBase:
             f.name: f.function for f in cls._active_functions
         }
         logger.info(
-            f"Entering the interpreter loop with functions {list(cls._active_function_callables.keys())} with context {user_context=}, {channel_context=}"
+            f"Entering the interpreter loop with functions {list(cls._active_function_callables.keys())} with context {user_context=}, {channel_context=} {question=}"
         )
 
         for _ in range(limit):
@@ -596,3 +597,20 @@ class AgentBase:
         )
 
         cls._audit_store.add(record)
+
+    def play_response(cls, text, voice="shimmer"):
+        """
+        temp sample - on mac we can use afplay
+        it would be better to split up and play parts probably
+        """
+        from pathlib import Path
+        import os
+
+        client = openai.OpenAI()
+        # https://stackoverflow.com/questions/20021457/playing-mp3-song-on-python
+        speech_file_path = Path("/tmp") / "speech.mp3"
+        response = client.audio.speech.create(model="tts-1", voice=voice, input=text)
+        response.stream_to_file(speech_file_path)
+        os.system(f"afplay {speech_file_path}")
+
+        return response

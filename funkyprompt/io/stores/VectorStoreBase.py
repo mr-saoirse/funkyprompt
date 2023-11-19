@@ -229,7 +229,7 @@ class VectorDataStore(AbstractStore):
             return cls._table.add(data=records, mode=mode)
         return cls.load()
 
-    def plot(cls, plot_type=False, labels="doc_id", questions=None, **kwargs):
+    def plot(cls, plot_type=False, labels="document", questions=None, **kwargs):
         """
         Use UMAP to plot the vector stores embeddings. Be carefully to limit size in future
 
@@ -258,7 +258,7 @@ class VectorDataStore(AbstractStore):
 
         funkyprompt.logger.debug(f"Loading data...")
         # TODO control the columns we are loading
-        df = cls.load()[["name", "text", "doc_id", "vector", "id"]]
+        df = cls.load()[["name", "content", "vector", "document"]]
         if questions:
             # add question with their own doc id
             funkyprompt.logger.debug(f"Adding questions")
@@ -268,10 +268,8 @@ class VectorDataStore(AbstractStore):
                 pl.DataFrame(
                     {
                         "name": f"q{id}",
-                        "text": q,
-                        "doc_id": f"q{id}",
+                        "content": q,
                         "vector": pl.Series(cls._embeddings(q)).cast(pl.Float32()),
-                        "id": f"q{id}",
                     }
                     for id, q in enumerate(questions)
                 )
@@ -292,7 +290,7 @@ class VectorDataStore(AbstractStore):
         elif plot_type == "interactive":
             umap.plot.output_notebook()
             hover_data = pd.DataFrame(
-                {"label": df[labels].to_list(), "text": df["text"].to_list()}
+                {"label": df[labels].to_list(), "text": df["content"].to_list()}
             )
             hover_data["item"] = hover_data["text"].map(lambda x: {"text": x})
             p = umap.plot.interactive(
