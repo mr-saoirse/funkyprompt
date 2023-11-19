@@ -172,7 +172,9 @@ class VectorDataStore(AbstractStore):
 
             # im not sure why the vector is returned
             return (
-                query_root.select(query_options.columns).to_pandas().drop("vector", 1)
+                query_root.select(query_options.columns)
+                .to_pandas()
+                .drop("vector", axis=1)
             )
 
         if not isinstance(questions, list):
@@ -196,7 +198,7 @@ class VectorDataStore(AbstractStore):
             .head(query_options.limit)
         )
 
-        # default to dicts
+        # default to dicts - may create an interface for searches later e.g. response.data response.status response.message etc
         return result.to_dict("records")
 
     def upsert_records(

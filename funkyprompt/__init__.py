@@ -31,6 +31,10 @@ from datetime import datetime
 
 utc_now_str = lambda: datetime.utcnow().isoformat()
 
+from .ops.observability import get_tracer
+
+tracer = get_tracer()
+
 from . import io, ops
 from funkyprompt.io.stores import FunkyRegistry
 from funkyprompt.model.func import describe_function

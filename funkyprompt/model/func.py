@@ -300,6 +300,7 @@ def describe_function(
                 # for enums adds the choices
                 if issubclass(T, Enum):
                     args_dict[param_name]["enum"] = [member.value for member in T]
+
         """
         we can optionally add system fields 
         """
@@ -308,9 +309,9 @@ def describe_function(
                 "type": "string",
                 "description": "Your confidence between 0 and 100 that calling this function is the right thing to do in this context",
             }
-            args_dict["__parameter_choices__"] = {
+            args_dict["__context__"] = {
                 "type": "string",
-                "description": "Explain why you are passing these parameters",
+                "description": "Explain why you are calling this function",
             }
         return args_dict
 

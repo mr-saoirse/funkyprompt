@@ -2,13 +2,14 @@ import openai
 import typing
 import json
 from funkyprompt.io.stores import EntityDataStore, VectorDataStore
-from funkyprompt.io.stores.VectorStoreBase import QueryOptions
+from funkyprompt.io.stores.VectorDataStore import QueryOptions
 from funkyprompt.io.stores import AbstractStore
 from funkyprompt.agent.auditing import InterpreterSessionRecord
 from funkyprompt import describe_function
 from funkyprompt.model import AbstractModel, AbstractContentModel, NpEncoder
 from funkyprompt.model.func import FunctionDescription
 from funkyprompt import logger, str_hash, utc_now_str, FunkyRegistry
+from functools import partial
 
 DEFAULT_MODEL = "gpt-4-1106-preview"  #  "gpt-4"  # has a 32k context or 8k
 VISION_MODEL = "gpt-4-vision-preview"
@@ -46,7 +47,7 @@ class AgentBase:
 
     PLAN = """  You are an intelligent entity that uses the supplied functions to answer questions
                 If a question is made up multiple parts or concepts, split the concept up first into multiple questions and send each question to the best available function. 
-                
+                If you are asked to supply __context__ and __confidence__ in functions please do so!
                 0. If the answer is something you already know from your training e.g. a well known fact, you should answer directly without consulting further functions.
                 1. Otherwise, start by stating your strategy as it is important to use the right functions - can search for functions to solve the problem
                 2. The functions provide details about parameters and any complex types that need to be passed as arguments 
@@ -58,11 +59,22 @@ class AgentBase:
     # Please respond with your answer, your confidence in your answer on a scale of 0 to 100 and also the strategy that you employed.
     #     """
 
-    def __init__(cls, initial_functions=None, allow_function_search=True, **kwargs):
+    def __init__(
+        cls,
+        initial_functions=None,
+        allow_function_search=True,
+        require_system_function_args=True,
+        **kwargs,
+    ):
         """
         modules are used to inspect functions including functions that do deep searches of other modules and data
 
         """
+
+        # so we can control the context we partially evaluate describe function
+        cls._describe_fn = partial(
+            describe_function, add_sys_fields=require_system_function_args
+        )
 
         # add function revision and pruning as an option
         cls._entity_store = EntityDataStore(AbstractModel)
@@ -77,10 +89,10 @@ class AgentBase:
         if allow_function_search:
             cls._built_in_functions += [  # strategies
                 # describe_function(cls.load_strategy),  # functions
-                describe_function(cls.search_functions),
-                describe_function(cls.list_library_functions),
-                describe_function(cls.request_library_functions),
-                describe_function(cls.describe_visual_image),
+                cls._describe_fn(cls.search_functions),
+                cls._describe_fn(cls.list_library_functions),
+                cls._describe_fn(cls.request_library_functions),
+                cls._describe_fn(cls.describe_visual_image),
             ]
         cls._active_functions = []
         cls._audit_store = VectorDataStore(
@@ -129,12 +141,17 @@ class AgentBase:
 
         args = json.loads(args) if isinstance(args, str) else args
 
+        sys_fields = {}
         # the LLM should give us this context but we remove it from the function call
-        for sys_field in ["__confidence__", "__parameter_choices__"]:
+        for sys_field in ["__confidence__", "__context__"]:
             if sys_field in args:
-                logger.debug(f"{sys_field}  = {args.pop(sys_field)}")
+                sys_fields[sys_field] = args.pop(sys_field)
 
+        logger.debug(f"{sys_fields=}")
+
+        # open telemetry trace - create events for search
         data = fn(**args)
+        # event = SearchEvent()
 
         """
         experimental - refactor out
@@ -259,7 +276,6 @@ class AgentBase:
             return f["type"] in ["vector-store", "columnar-store"]
 
         new_functions = [
-            # restore the function with a weight
             AbstractStore.restore_from_data(
                 data=f, weight=f["_distance"], as_function_description=True
             )
@@ -268,11 +284,7 @@ class AgentBase:
         ]
 
         logger.info(f"Adding functions {[f.name for f in new_functions]}")
-
         cls._active_functions += new_functions
-
-        # TODO ensure functions are unique
-
         cls._active_function_callables = {
             f.name: f.function for f in cls._active_functions
         }
@@ -439,6 +451,7 @@ class AgentBase:
     def __call__(cls, *args, **kwargs):
         return cls.run(*args, **kwargs)
 
+    # open telemetry trace
     def run(
         cls,
         question: str,
@@ -467,12 +480,15 @@ class AgentBase:
             channel_context: a session context e.g. a slack channel or node from which the question comes
             response_callback: a function that we can call to post streaming responses
         """
+        # pass in a session key or generate one
+        session_key = session_key or str_hash()
 
-        # store question for context
+        # store question for context - experimental because it guides the agent to use search (bias)
         if force_search:
             # this can be a handy hint to add weight to using the functions
             question = f"Search for {question}"
 
+        # setup messages
         cls._question = question
         cls._messages = [
             {"role": "system", "content": cls.PLAN},
@@ -484,13 +500,15 @@ class AgentBase:
             },
         ]
 
+        """
+        prepare functions
+        """
         # coerce to allow single or multiple functions
         if isinstance(initial_functions, FunctionDescription):
             initial_functions = [initial_functions]
         # TODO: support passing the callable but think about where else we interact. we can just describe_function if the args are not FDs
 
         cls._active_functions = cls._built_in_functions + (initial_functions or [])
-
         cls._active_function_callables = {
             f.name: f.function for f in cls._active_functions
         }
@@ -498,6 +516,9 @@ class AgentBase:
             f"Entering the interpreter loop with functions {list(cls._active_function_callables.keys())} with context {user_context=}, {channel_context=} {question=}"
         )
 
+        """
+        enter interpreter loop
+        """
         for _ in range(limit):
             # functions can change if revise_function call is made
             functions_desc = [f.function_dict() for f in cls._active_functions]
@@ -513,9 +534,7 @@ class AgentBase:
 
             response_message = response.choices[0].message
             logger.debug(response_message)
-
             function_call = response_message.function_call
-
             if function_call:
                 fn = cls._active_function_callables[function_call.name]
                 args = function_call.arguments
@@ -534,7 +553,7 @@ class AgentBase:
                 )
 
             if extra_reflection:
-                # candidate not core
+                # candidate not core - experimental - could also create a dynamic check status function - this is treated almost like a function by the agent
                 cls._messages.append(
                     {
                         "role": "user",
@@ -559,14 +578,17 @@ class AgentBase:
             # its good to send back the message before dumping auditing
             response_callback(response_message.content)
 
-        # cls._dump(
-        #     name=f"run{str_hash()}",
-        #     question=question,
-        #     response=response_message.content,
-        #     session_key=session_key,
-        #     user_context=user_context,
-        #     channel_context=channel_context,
-        # )
+        """
+        dump everything to history
+        """
+        cls._dump(
+            name=f"run{str_hash()}",
+            question=question,
+            response=response_message.content,
+            session_key=session_key,
+            user_context=user_context,
+            channel_context=channel_context,
+        )
 
         return response_message.content
 
@@ -576,7 +598,8 @@ class AgentBase:
         """
         dump the session to the store
         """
-        logger.debug(f"Dumping session")
+        logger.debug(f"Dumping session to f{cls._audit_store._table_uri}")
+        response = response or ""
 
         # todo add attention comments which are useful
         record = InterpreterSessionRecord(
@@ -584,7 +607,6 @@ class AgentBase:
             session_key=session_key,
             name=name,
             question=question,
-            response=response or "",
             # dump the function descriptions that we used - some may have been purged...
             function_usage_graph=json.dumps(
                 [f.function_dict() for f in cls._active_functions]
@@ -593,7 +615,7 @@ class AgentBase:
             messages=json.dumps(cls._messages),
             user_id=user_context or "",
             channel_context=channel_context or "",
-            text="",
+            content=json.dumps({"question": question, "response": response}),
         )
 
         cls._audit_store.add(record)

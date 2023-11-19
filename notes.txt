@@ -1,3 +1,4 @@
 #i may locally tag and pin poetry and then create my kustomize for stand alone
-git tag 0.1.316 & git push --tags
+git tag 0.1.318 & git push --tags
 poetry version $(git describe --tags --abbrev=0)
+poetry build & poetry publish
