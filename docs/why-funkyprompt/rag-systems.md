@@ -36,10 +36,10 @@ fp data add  --url "https://www.gutenberg.org/files/20748/20748-h/20748-h.htm" -
 ```
 {% endcode %}
 
-Give it a moment to read the page and embed it in a vector store table called fairy tales
+Give it a moment to read the page and embed it in a vector store table called `FairyTales` in the `default` namespace.
 
 {% hint style="info" %}
-This will be stored in `$FP_STORE_HOME/stores/vector/default/FairyTales`
+This will be stored in `$FP_STORE_HOME/stores/vector-store/default/FairyTales`
 
 `The namespace here is default as it was not specified`
 {% endhint %}
