@@ -18,6 +18,13 @@ funkyprompt.agent("what function can you used for books")
 
 For free we trace the basic execution calls - a bare bones one is shown here just to illustrate how the spans are chained. We can enrich this as weill be discussed below. In this case we run an interpreter session which spans a span child to invoke functions which in turn runs a vector search. You can see the shared trace id and the parent child relationships between span ids. We also shown one custom attribute on the parent i.e. the `funky_session_id` and this will be linked to the audited agent conversation (that is stored in the InterpreterSession vector store).
 
+```python
+#the default beahviour is to wait a long time using the console logger
+#and then flush it at the end
+#at scale these events would be sent to the configured exporters e.g. on K8s
+funkyprompt.tracer.span_processor.force_flush()
+```
+
 ```json
 {
     "name": "vector_store_search",
