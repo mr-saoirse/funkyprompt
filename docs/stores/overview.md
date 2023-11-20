@@ -56,10 +56,10 @@ In `funkyprompt` we always start with the schema!
 For example you can do the following to create a Pydantic type to generate a store...
 
 ```python
-MyType = AbstractVectorStoreEntry.from_data(<name>, <data>, namespace='default')
+MyType = AbstractContentModel.create_model_from_data(<name>, <data>, namespace='default')
 ```
 
-Or if you don't want a vector store entry you can use the base type and store things in columnar stores
+Or if you don't want a vector store model you can use the base type and store things in columnar stores
 
 ```
 MyType = AbstractModel.create_model_from_data(<name>, <data>)
