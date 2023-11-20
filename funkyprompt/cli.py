@@ -18,6 +18,8 @@ from funkyprompt.io.tools import fs
 from funkyprompt import agent
 from funkyprompt.agent.planning import PlanningAgent
 
+from InstructorEmbedding import INSTRUCTOR
+
 app = typer.Typer()
 
 # loader_app = typer.Typer()
