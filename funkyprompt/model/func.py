@@ -263,7 +263,7 @@ def describe_function(
             return "boolean"
         # for pydantic objects return the schema
         if is_pydantic_type(python_type):
-            return python_type.schema()
+            return python_type.model_json_schema()
 
         if issubclass(python_type, Enum):
             # assume uniform types

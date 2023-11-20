@@ -136,6 +136,7 @@ def plan(
 """
 
 
+# deprecate
 @data_app.command("entity")
 def ingest_type(
     entity_type: str = typer.Option(None, "--name", "-n"),
@@ -211,7 +212,7 @@ def add(
         iterate_types_from_headed_paragraphs,
     )
 
-    # temporary
+    # temporary - will create a generic polymorphic ingestion
 
     Model = AbstractContentModel.create_model(name, namespace=namespace)
     store = VectorDataStore(Model, description=f"Ingested from {url}")
@@ -220,27 +221,6 @@ def add(
     data = list(iterate_types_from_headed_paragraphs(url, Model))
     store.add(data)
     logger.debug(f"Ingested")
-
-
-@data_add_app.command("webpage")
-def ingest_page(
-    url: str = typer.Option(None, "--url", "-u"),
-    store_name: str = typer.Option(None, "--name", "-n"),
-    namespace: str = typer.Option("default", "--namespace", "-ns"),
-):
-    """
-    ingest a page at url into a named store...
-
-    """
-    from funkyprompt.model import AbstractContentModel
-    from funkyprompt.io import VectorDataStore
-    from funkyprompt.io.tools.ingestion import ingest_page_to_model
-
-    Model = AbstractContentModel(store_name, namespace=namespace)
-    store = VectorDataStore(Model, description=f"Ingested from {url}")
-
-    logger.debug(f"Ingesting {url} to {namespace}.{store_name}")
-    ingest_page_to_model(url=url, model=Model)
 
 
 """

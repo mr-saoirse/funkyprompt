@@ -1,0 +1,16 @@
+#example config for K8s
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: funky-config-map
+data:
+  #you should not secrets here but its a reminder of what to see + you can test with it temporarily
+  #if the AWS secrets are set then boto secrets manager is one way to provide secrets. FP will try to do that to avoid a need for any other secrets
+  #OPENAI_API_KEY: ""
+  #same for these - its best to use a node service account perhaps
+  #AWS_ACCESS_KEY_ID=
+  #AWS_SECRET_ACCESS_KEY=
+  AWS_DEFAULT_REGION: us-east-1
+  FP_STORE_HOME: s3://<YOUR-BUCKET>/<some-dir>
+  OTEL_TRACES_EXPORTER: oltp
+  OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: grpc

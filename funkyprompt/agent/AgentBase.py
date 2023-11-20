@@ -1,20 +1,12 @@
 import openai
 import typing
 import json
-import numpy as np
-from funkyprompt.io.stores import EntityDataStore, VectorDataStore
+from funkyprompt.io.stores import EntityDataStore, VectorDataStore, AbstractStore
 from funkyprompt.io.stores.VectorDataStore import QueryOptions
-from funkyprompt.io.stores import AbstractStore
 from funkyprompt.agent.auditing import InterpreterSessionRecord
-from funkyprompt import describe_function
 from funkyprompt.model import AbstractModel, AbstractContentModel, NpEncoder
 from funkyprompt.model.func import FunctionDescription
-from funkyprompt import (
-    logger,
-    str_hash,
-    utc_now_str,
-    FunkyRegistry,
-)
+from funkyprompt import logger, str_hash, describe_function
 from functools import partial
 import funkyprompt
 
@@ -35,7 +27,6 @@ class AgentBase:
     some functions such as checking session history are still functional
     examples of things this should be able to do
     - Look for or take in functions and answer any question with no extra prompting and nudging. Examples based on ops we have
-        - A special case is generating types and saving them
     - we should be able to run a planning prompt where the agent switches into saying what it would do e.g. rating functions, graph building, planning
     - we should be able to construct complex execution flows e.g.
       - parallel function calls
@@ -43,14 +34,8 @@ class AgentBase:
       - asking the user for more input
       - evolution of specialists
 
-    All of this is made possible by making sure the agent trusts the details in the functions and follows the plan and returns the right formats
-    The return format can be itself a function e.g. save files or report (structured) answer
-
     If it turns out we need to branch into specialist agents we can do so by overriding the default prompt but we are trying to avoid that on principle
     """
-
-    #          You are evaluated on your ability to properly nest objects and name parameters when calling functions.
-    # after considering your Search strategy.
 
     PLAN = """  You are an intelligent entity that uses the supplied functions to answer questions
                 If a question is made up multiple parts or concepts, split the concept up first into multiple questions and send each question to the best available function. 
@@ -59,12 +44,10 @@ class AgentBase:
                 1. Otherwise, start by stating your strategy as it is important to use the right functions - can search for functions to solve the problem
                 2. The functions provide details about parameters and any complex types that need to be passed as arguments 
                 3. Observe functions that you have tried and do not repeatedly call the same functions with the same arguments - that is usually pointless.
-                4. Your response should be one level JSON format - including a) your "answer" which just be unstructured text, b) your "confidence" that you have completely answered the users question as a score from 0 to 100  and c) the specific "strategy" you employed to search
+                4. Your response should be JSON format - including a) your "answer" which should just be unstructured text fields, b) your "confidence" that you have completely answered the user's question as a score from 0 to 100  and c) the specific "strategy" you employed to search
                 """
 
-    USER_HINT = """"""  # """You must return the strategy that you carefully considered in addition to your answer and your confidence in your answer """
-    # Please respond with your answer, your confidence in your answer on a scale of 0 to 100 and also the strategy that you employed.
-    #     """
+    USER_HINT = """"""
 
     def __init__(
         cls,
@@ -74,8 +57,7 @@ class AgentBase:
         **kwargs,
     ):
         """
-        modules are used to inspect functions including functions that do deep searches of other modules and data
-
+        prepare function calling and stores
         """
 
         # so we can control the context we partially evaluate describe function
@@ -85,7 +67,7 @@ class AgentBase:
 
         # add function revision and pruning as an option
         cls._entity_store = EntityDataStore(AbstractModel)
-        cls._function_index_store = FunkyRegistry()
+        cls._function_index_store = funkyprompt.FunkyRegistry()
         cls._built_in_functions = [
             # entity look
             cls._entity_store.as_function_description(name="entity_key_lookup"),
@@ -108,6 +90,8 @@ class AgentBase:
         )
         # when we reload functions we can keep the baked functions and restore others - it may be we bake the ones pass in call but TBD
         cls._baked_functions_length = len(cls._built_in_functions)
+
+        # TODO conversation history, message pruning, token usage
 
     def on_fail_function_load(cls, function_call):
         """
@@ -212,9 +196,10 @@ class AgentBase:
         except Exception as ex:
             # LEARNING: this is good for learning in place but we also need to audit and minimize this because its expensive
             logger.warning(f"Failing to call function {ex}")
-            return f"You tried and failed to call this function - please try again. The error is {ex}"
+            return f"You tried and failed to call this function - please try again. The error is: {ex}"
+
         """
-        experimental - refactor out
+        experimental - factor out
         we should come up with a cheap way to summarize
         the idea here is you are "forcing" the interpreter to summarize but you should not. how to?
         
@@ -228,8 +213,6 @@ class AgentBase:
             )
 
         return data
-
-    # ADD API provider loader for coda, shortcut etc in case we need to peek refs
 
     def list_library_functions(cls, context: str = None):
         """
@@ -280,9 +263,7 @@ class AgentBase:
         }
 
         # LEARNING note we always should hint an action
-        return {
-            "result": "functions loaded - you should know call the correct function"
-        }
+        return {"result": "functions loaded - you should now call the correct function"}
 
     def search_functions(
         cls,
@@ -321,10 +302,7 @@ class AgentBase:
 
         if len(questions) == 0:
             pass
-            # popular route??
-            # df = cls._function_index_store.load()[
-            #     "name", "content", "metadata", "type"
-            # ].to_dicts()
+            # we can possible show some popular ones but lets see
         else:
             df = cls._function_index_store(
                 questions,
@@ -376,27 +354,6 @@ class AgentBase:
             new_messages: messages to replace any messages generated after the users initial question
         """
         cls._messages = [cls._messages[:2]] + new_messages
-
-    def cheap_summarize(cls, question: str, model=None, out_token_size=150, best_of=5):
-        """
-        this is a direct request rather than the interpreter mode - cheap model to do a reduction
-        does not seem to work well though
-        https://platform.openai.com/docs/api-reference/completions/object
-        """
-
-        logger.debug("summarizing...")
-
-        response = openai.completions.create(
-            model=model or DAVINCI,
-            temperature=0.5,
-            max_tokens=out_token_size,
-            n=1,
-            best_of=best_of,
-            stop=None,
-            prompt=f"Summarize this text:\n{      question     }: Summary: ",
-        )
-
-        return response.choices[0]["text"]
 
     def summarize(
         cls,
@@ -477,41 +434,10 @@ class AgentBase:
 
         return response.choices[0].message.content
 
-    def describe_visual_image(
-        cls,
-        url: str,
-        question: str = "describe the image you see",
-    ):
-        """
-        A url to an image such as a png, tiff or JPEG can be passed in and inspected
-        A question can prompt to identify properties of the image
-        When calling this function you should split the url out of the question and pass a suitable question based on the user question
-
-        **Args**
-            url: the url to the image
-            question: the prompt to extract information from the image
-        """
-        # todo -
-
-        response = openai.chat.completions.create(
-            model=VISION_MODEL,
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": question},
-                        {
-                            "type": "image_url",
-                            "image_url": url,
-                        },
-                    ],
-                }
-            ],
-            max_tokens=300,
-        )
-        return response.choices[0].message.content
-
     def __call__(cls, *args, **kwargs):
+        """
+        wrapper on run for convenience
+        """
         return cls.run(*args, **kwargs)
 
     # open telemetry trace
@@ -524,7 +450,6 @@ class AgentBase:
         ] = None,
         limit: int = 10,
         session_key=None,
-        response_format=None,
         user_context=None,
         channel_context=None,
         response_callback=None,
@@ -539,10 +464,11 @@ class AgentBase:
             initial_functions: preferred functions to use before searching for more
             limit: the number of loops the interpreter can run for before giving up
             session_key: any session id for grouping audit data
-            response_format: force response format (deprecate)
             user_context: a user name e.g. a slack user or email address
             channel_context: a session context e.g. a slack channel or node from which the question comes
             response_callback: a function that we can call to post streaming responses
+            extra_reflection: experimental check status in the loop - its not obvious if this is desirable
+            force_search: short term observation of biasing for searching vs. trying to answer by other means
         """
         # pass in a session key or generate one
         session_key = session_key or str_hash()
@@ -554,7 +480,9 @@ class AgentBase:
             # this can be a handy hint to add weight to using the functions
             question = f"Search for {question}"
 
-        # setup messages
+        """
+        setup initial messages
+        """
         cls._question = question
         cls._messages = [
             {"role": "system", "content": cls.PLAN},
@@ -687,7 +615,7 @@ class AgentBase:
             function_usage_graph=json.dumps(
                 [f.function_dict() for f in cls._active_functions]
             ),
-            audited_at=utc_now_str(),
+            audited_at=funkyprompt.utc_now_str(),
             messages=json.dumps(cls._messages),
             user_id=user_context or "",
             channel_context=channel_context or "",
@@ -713,3 +641,57 @@ class AgentBase:
         os.system(f"afplay {speech_file_path}")
 
         return response
+
+    def describe_visual_image(
+        cls,
+        url: str,
+        question: str = "describe the image you see",
+    ):
+        """
+        A url to an image such as a png, tiff or JPEG can be passed in and inspected
+        A question can prompt to identify properties of the image
+        When calling this function you should split the url out of the question and pass a suitable question based on the user question
+
+        **Args**
+            url: the url to the image
+            question: the prompt to extract information from the image
+        """
+        # todo -
+
+        response = openai.chat.completions.create(
+            model=VISION_MODEL,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": question},
+                        {
+                            "type": "image_url",
+                            "image_url": url,
+                        },
+                    ],
+                }
+            ],
+            max_tokens=300,
+        )
+        return response.choices[0].message.content
+
+    def cheap_summarize(cls, question: str, model=None, out_token_size=150, best_of=5):
+        """
+        this is a direct request rather than the interpreter mode - cheap model to do a reduction
+        https://platform.openai.com/docs/api-reference/completions/object
+        """
+
+        logger.debug("summarizing...")
+
+        response = openai.completions.create(
+            model=model or DAVINCI,
+            temperature=0.5,
+            max_tokens=out_token_size,
+            n=1,
+            best_of=best_of,
+            stop=None,
+            prompt=f"Summarize this text:\n{      question     }: Summary: ",
+        )
+
+        return response.choices[0]["text"]
