@@ -6,6 +6,7 @@ from loguru import logger
 import os
 from pathlib import Path
 import uuid
+import sys
 import hashlib
 from ._version import __version__
 from getpass import getuser
@@ -23,6 +24,8 @@ STORE_ROOT = os.environ.get("FP_STORE_HOME", DEFAULT_HOME).rstrip("/")
 VECTOR_STORE_ROOT_URI = f"{STORE_ROOT}/vector-store"
 COLUMNAR_STORE_ROOT_URI = f"{STORE_ROOT}/columnar-store"
 
+logger.remove()
+logger.add(sys.stderr, level=os.environ.get("FP_LOG_LEVEL", "DEBUG"))
 
 """
 some basic global utils and init
