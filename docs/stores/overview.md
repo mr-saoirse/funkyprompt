@@ -15,7 +15,7 @@ All stores in `funkyprompt` require Pydantic types to be defined and that is the
 Lets start with the VectorDataStore. If you want to load some sample data run
 
 ```python
-from funkyprompt.io.tools.downloader import load_example_foody_guides
+from funkyprompt.io.tools.ingestion import load_example_foody_guides
 load_example_foody_guides()
 #if running locally browse to $HOME/.funkyprompt/vector-stores/default
 ```
