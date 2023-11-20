@@ -23,3 +23,7 @@ This will make sense as we get into then specifics. For now, ask yourself this q
 ## Usage
 
 From this repo the easiest thing to do is use Poetry to build and install from the cloned repo. For more details see the docs to [Install](https://mr-saoirse.gitbook.io/funkyprompt/why-funkyprompt/install) and beyond.
+
+## Roadmap
+
+-

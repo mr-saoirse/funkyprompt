@@ -1,4 +1,4 @@
-from pydantic import Field, BaseModel, create_model, model_validator
+from pydantic import Field, BaseModel, create_model, model_validator, ConfigDict
 from lancedb.pydantic import LanceModel, Vector
 import typing
 import funkyprompt
@@ -152,17 +152,18 @@ class SchemaOrgVectorEntity(AbstractContentModel):
     we want tp put this in various pydantic types to use the Rag Store
     """
 
-    class Config:
+    model_config = ConfigDict(
         # these are excluded from the output we send to data stores for now
-        EXCLUDE_ATTRIBUTES = ["comment", "sameAs"]
+        EXCLUDE_ATTRIBUTES=["comment", "sameAs"],
         # these are mapped from objects that are complex with @id to just have the string value (s)
-        PULL_IDs = ["image", "video", "publisher", "aggregate_rating"]
-        FLATTEN_COMPLEX_NAMED_TEXT_TYPES = ["HowToStep"]
+        PULL_IDs=["image", "video", "publisher", "aggregate_rating"],
+        FLATTEN_COMPLEX_NAMED_TEXT_TYPES=["HowToStep"],
+    )
 
     @model_validator(mode="before")
     def pull_ids(cls, values):
         for key in values.keys():
-            if key in SchemaOrgVectorEntity.Config.PULL_IDs:
+            if key in SchemaOrgVectorEntity.model_config["PULL_IDs"]:
                 if not isinstance(values, dict):
                     raise NotImplementedError("multiples todo for mapping @id stuff")
                 values[key] = values.get("name", values.get("@id"))
@@ -182,7 +183,7 @@ class SchemaOrgVectorEntity(AbstractContentModel):
     @staticmethod
     def should_exclude(k, override_exclude=None):
         return k in (
-            override_exclude or SchemaOrgVectorEntity.Config.EXCLUDE_ATTRIBUTES
+            override_exclude or SchemaOrgVectorEntity.model_config["EXCLUDE_ATTRIBUTES"]
         )
 
     @classmethod

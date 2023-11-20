@@ -227,7 +227,7 @@ class VectorDataStore(AbstractStore):
 
             # todo - support schema migration and fix this support for dicts or models without vectors that need embedding
             def f(d):
-                d = d.dict() if hasattr(d, "dict") else d
+                d = d.model_dump() if hasattr(d, "model_dump") else d
                 return {k: v for k, v in d.items() if k not in ["vector"]}
 
             records = [f(d) for d in records]
