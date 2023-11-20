@@ -18,6 +18,7 @@ pip install funkyprompt
 #from within the repo folder run commands like these
 poetry build
 poetry install
+poetry run pytest
 ```
 
 You need the following ENV variables to be _optionally_ set depending on what you want to do
