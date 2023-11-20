@@ -65,9 +65,15 @@ class VectorDataStore(AbstractStore):
         return db
 
     @classmethod
-    def from_model_name(cls, name: str, namespace: str = None):
+    def from_model_name(cls, name: str, namespace: str = None, description=None):
+        """
+        Create an abstract model that references the location and load the vector store
+        This is an ephemeral store in the sense that it is not loaded with true schema for sure
+        """
         Model = AbstractContentModel.create_model(name=name, namespace=namespace)
-        return VectorDataStore(Model)
+        return VectorDataStore(
+            Model, description=description or "Model created from name"
+        )
 
     def _open_table(self, register=True):
         db = self._get_lance_connection()
@@ -132,8 +138,6 @@ class VectorDataStore(AbstractStore):
            since_date: for restricting vector searches post some date
            query_options: underlying query options - usually the defaults are sufficient
         """
-        # want to remove this as dep
-        import pandas as pd
 
         query_options = query_options or QueryOptions()
         funkyprompt.add_span_attribute("store_name", cls._model.__fullname__)
@@ -180,33 +184,26 @@ class VectorDataStore(AbstractStore):
             # im not sure why the vector is returned
             return (
                 query_root.select(query_options.columns)
-                .to_pandas()
-                .drop("vector", axis=1)
+                .to_arrow()
+                .drop("vector")[: query_options.limit]
             )
 
         if not isinstance(questions, list):
             questions = [questions]
 
-        # combine to a polars table
-        ensure_columns = ["_distance"] + query_options.columns
-        result = pd.concat([search_one(q) for q in questions])
+        result = [search_one(q) for q in questions]
+        result = pl.from_arrow(pa.concat_tables(result))
 
         if not len(result):
+            # maybe provide some info or hint
             return []
 
         funkyprompt.logger.debug(f"Fetched {len(result)}")
+        result = result.sort("_distance").filter(
+            pl.col("_distance") < query_options.distance_threshold
+        )[: query_options.limit]
 
-        # result = pl.from_arrow(pa.concat_tables(result))
-        # result = result.filter(pl.col("_distance") < query_options.distance_threshold)
-
-        result = (
-            result[ensure_columns]
-            .sort_values("_distance", ascending=False)
-            .head(query_options.limit)
-        )
-
-        # default to dicts - may create an interface for searches later e.g. response.data response.status response.message etc
-        return result.to_dict("records")
+        return result.to_dicts()
 
     def upsert_records(
         cls, records: typing.List[AbstractContentModel], key="name", mode="append"
