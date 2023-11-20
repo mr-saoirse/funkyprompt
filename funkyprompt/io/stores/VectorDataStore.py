@@ -64,6 +64,11 @@ class VectorDataStore(AbstractStore):
         db = lancedb.connect(self._db_uri)
         return db
 
+    @classmethod
+    def from_model_name(cls, name: str, namespace: str = None):
+        Model = AbstractContentModel.create_model(name=name, namespace=namespace)
+        return VectorDataStore(Model)
+
     def _open_table(self, register=True):
         db = self._get_lance_connection()
         name = self._model.__entity_name__

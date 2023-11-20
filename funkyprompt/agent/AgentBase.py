@@ -370,7 +370,7 @@ class AgentBase:
         the question context means this is also a filter so we can summarize and filter to reduce the size of text
 
         Example:
-            from funkyprompt.io.tools.downloader import load_example_foody_guides
+            from funkyprompt.io.tools.ingestion import load_example_foody_guides
             load_example_foody_guides(limit=10)
 
             agent("Where can you recommend to eat in New York? Please provide some juicy details about why they are good and the location of each")

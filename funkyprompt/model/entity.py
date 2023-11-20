@@ -6,6 +6,7 @@ from funkyprompt.model import EmbeddingFunctions, map_field_types_from_pa_schema
 import re
 import numpy as np
 import json
+import pyarrow as pa
 
 
 class AbstractModel(BaseModel):
@@ -78,6 +79,18 @@ class AbstractModel(BaseModel):
         fields = {k: _Field(k, v) for k, v in fields.items()}
         return create_model(name, **fields, __module__=namespace, __base__=cls)
 
+    @classmethod
+    def create_model_from_data(cls, name, data, namespace=None, **kwargs):
+        schema = pa.Table.from_pandas(data).schema
+        data = data.to_dict("records")
+        Model = cls.create_model_from_pyarrow(
+            name=name,
+            namespace=namespace,
+            py_arrow_schema=schema,
+        )
+
+        return Model
+
 
 class AbstractContentModel(LanceModel, AbstractModel):
     """
@@ -94,6 +107,7 @@ class AbstractContentModel(LanceModel, AbstractModel):
     aperture: int = 0
     refs: typing.List[str] = []
     document: str = ""
+    cluster_id: str = ""
 
     # this is a convenience for testing for now - todo inspect the embedding and embed the content if its blank
     @model_validator(mode="before")
