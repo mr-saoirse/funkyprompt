@@ -26,7 +26,7 @@ Now that we have some data we can see how the store works.&#x20;
 
 ```python
 from funkyprompt.io import VectorDataStore
-store = VectorDataStore._load_vector_store('FoodyGuides')
+store = VectorDataStore.from_model_name('FoodyGuides')
 #in a jupyter notebook
 store.load()
 ```
