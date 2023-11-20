@@ -25,7 +25,7 @@ This loads some data with embeddings into a store in the default namespace calle
 Now that we have some data we can see how the store works.&#x20;
 
 ```python
-from funkyprompt.io import query_stores, VectorDataStore
+from funkyprompt.io import VectorDataStore
 store = VectorDataStore._load_vector_store('FoodyGuides')
 #in a jupyter notebook
 store.load()
@@ -62,13 +62,12 @@ MyType = AbstractVectorStoreEntry.from_data(<name>, <data>, namespace='default')
 Or if you don't want a vector store entry you can use the base type and store things in columnar stores
 
 ```
-MyType = AbstractEntity.create_model_from_data(<name>, <data>)
+MyType = AbstractModel.create_model_from_data(<name>, <data>)
 ```
 
 If you already have a dataset (e.g. lance format) you can also "reverse engineer" the Pydantic model from the `pyarrow` schema
 
-<pre class="language-python" data-overflow="wrap"><code class="lang-python"><strong>AbstractEntity.create_model_from_pyarrow(&#x3C;name>, &#x3C;schema>, 
-</strong><strong>       embedding_provider='open-ai')
+<pre class="language-python" data-overflow="wrap"><code class="lang-python"><strong>AbstractModel.create_model_from_pyarrow(&#x3C;name>, &#x3C;schema>)
 </strong></code></pre>
 
 #### Example 1: Simple text&#x20;
@@ -77,8 +76,8 @@ To create a simple text entry in a new table
 
 {% code overflow="wrap" %}
 ```python
-from funkyprompt.ops.entities import AbstractVectorStoreEntry
-from funkyprompt.io import query_stores, VectorDataStore
+from funkyprompt.model import AbstractModel
+from funkyprompt.io import  VectorDataStore
 
 my_data = {
   'id' : 'id1',
@@ -86,7 +85,7 @@ my_data = {
   'label' : 'test'
 }
 #create the model
-TextSamples = AbstractEntity.create_model_from_data('TextSamples', data, namespace='default')
+TextSamples = AbstractModel.create_model_from_data('TextSamples', data, namespace='default')
 #create a store from the type
 store = VectorStore(TextSamples)
 #insert the typed data into the store
