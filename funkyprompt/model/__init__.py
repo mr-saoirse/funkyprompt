@@ -85,10 +85,6 @@ class NpEncoder(json.JSONEncoder):
     """
 
     def default(self, obj):
-        from pandas.api.types import is_datetime64_any_dtype as is_datetime
-        from pandas._libs.tslibs.timestamps import Timestamp
-        from pandas import isna
-
         dtypes = (np.datetime64, np.complexfloating)
         if isinstance(obj, dtypes):
             return str(obj)
@@ -100,11 +96,6 @@ class NpEncoder(json.JSONEncoder):
             if any([np.issubdtype(obj.dtype, i) for i in dtypes]):
                 return obj.astype(str).tolist()
             return obj.tolist()
-        elif not isinstance(obj, list) and isna(obj):
-            return None
-        # this is a choice for serialization
-        elif isinstance(obj, Timestamp) or is_datetime(obj):
-            return str(obj)
         return super(NpEncoder, self).default(obj)
 
 

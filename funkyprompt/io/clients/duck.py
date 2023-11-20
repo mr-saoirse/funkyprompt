@@ -22,7 +22,7 @@ class _query:
     def where(self, **kwargs):
         """
         only support and predicates right now
-        chained filters that can then be sub filtered in pandas
+        chained filters that can then be sub filtered
         """
         for k, v in kwargs.items():
             self._predicates.append(f"{k}={escape(v)}")
@@ -31,7 +31,7 @@ class _query:
     def isin(self, **kwargs):
         """
         only support and predicates right now
-        chained filters that can then be sub filtered in pandas
+        chained filters that can then be sub filtered
         """
         for k, values in kwargs.items():
             if not isinstance(values, list):

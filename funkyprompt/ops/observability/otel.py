@@ -25,7 +25,7 @@ class my_writer:
         """
         for s in my_writer.spans:
             try:
-                funkyprompt.logger.debug(s)
+                funkyprompt.logger.trace(s)
             except:
                 # this is only if the logger is closed when flush is called
                 print(s)
