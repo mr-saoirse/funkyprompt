@@ -18,6 +18,7 @@
 
 * [Overview](stores/overview.md)
 * [Pydantic types in funkyprompt](stores/pydantic-types-in-funkyprompt.md)
+* [Distributed Search](stores/distributed-search.md)
 
 ## Auditing
 
