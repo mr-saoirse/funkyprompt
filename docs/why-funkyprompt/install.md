@@ -58,7 +58,7 @@ This type of question of course is not the reason why you would want to use `fun
 {% code overflow="wrap" %}
 ```bash
 #this outputs a lot of debug by default!
-fp agent interpret -q "Use library functions to determine what a person John@gmail.com would do if their favourite color is Gold?"
+fp agent interpret -q "list and then load library functions to determine what a person John@gmail.com would do if their favourite color is Gold?"
 ```
 {% endcode %}
 
