@@ -50,14 +50,15 @@ alias fp='poetry run fprompt' and running from a poetry virtual env
 {% endhint %}
 
 ```bash
-fp ask -q "What is the capital of ireland?"
+fp agent ask -q "What is the capital of ireland?"
 ```
 
 This type of question of course is not the reason why you would want to use `funkyprompt` - a slightly more interesting question is one that requires inspecting the codebase for functions to answer the question. We have some example functions to make it easier to get started but it will be more fun if you bring your own. But for now we ask this vague question which is setup to be answerable by some of the example functions (as opposed to general knowledge)...
 
 {% code overflow="wrap" %}
 ```bash
-fp interpret -q "Use library functions to determine what a person John@gmail.com would do if their favourite color is Gold?"
+#this outputs a lot of debug by default!
+fp agent interpret -q "Use library functions to determine what a person John@gmail.com would do if their favourite color is Gold?"
 ```
 {% endcode %}
 
