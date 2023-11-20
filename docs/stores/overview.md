@@ -87,7 +87,7 @@ my_data = {
 #create the model
 TextSamples = AbstractModel.create_model_from_data('TextSamples', data, namespace='default')
 #create a store from the type
-store = VectorStore(TextSamples)
+store = VectorStore(TextSamples, description='test data')
 #insert the typed data into the store
 store.add(TextSamples(**my_data))
 # run a hyprid vector and text search
