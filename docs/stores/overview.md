@@ -20,7 +20,7 @@ load_example_foody_guides()
 #if running locally browse to $HOME/.funkyprompt/vector-stores/default
 ```
 
-This loads some data with embeddings into a store in the default namespace called `Guides`
+This loads some data with embeddings into a store in the default namespace &#x20;
 
 Now that we have some data we can see how the store works.&#x20;
 
