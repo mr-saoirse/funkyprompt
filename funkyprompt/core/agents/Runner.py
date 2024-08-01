@@ -170,7 +170,7 @@ class Runner:
                 id=default_id,
                 user_id=context.username or "system",
                 objective_node_id=context.session_id,
-                content={"question": questions, response: response},
+                content={"question": questions, "response": response},
             )
         )
 
@@ -185,8 +185,6 @@ class Runner:
 
 
 """
-
 #TODO: general test e.g. call a function with limit=1, it doesnt loop and confirm the result and therefore we might not get behviouar expected
-generally we want to ensure consistent output
-        
+generally we want to ensure consistent output    
 """
