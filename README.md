@@ -23,7 +23,7 @@ We think the answer to all these questions is simple; _types_. What we do not be
 So how is it that types solve all our problems. 
 
 1. Objects are the way to encapsulate metadata, fields and functions. It has been like this in software engineering for some time now. Turns out, function calling which is a big part of agentic/rag can benefit from organize functions into types
-2. functions have doc-strings - doc-strigns are prompts
+2. functions have doc-strings - doc-strings are prompts
 3. Types can have schema or fields so that when reading data from databases we can augment them with metadata e.g. pydantic field annotations. Annotations are prompts.
 4. Types can have additional config or metadata. Metadata are prompts.
 5. Types can be persisted to different databases; key-value, vector, graph, SQL and these different stores can all be queried via natural language. Thus types abstract the underlying data store.
@@ -48,7 +48,7 @@ Services are databases or LLM Apis. We provide very very very thin wrappers arou
 
 ### Databases
 
-We leave heavily on postgres because its the old-fashioned boring choice and its a one-stop shop for data modalities we care about.
+We lean heavily on postgres because its the old-fashioned boring choice and its a one-stop shop for data modalities we care about.
 An embedded option is also implemented that uses a combination of DuckDB, LanceDB and Redis. This is very useful for trying things out locally. Postgres is easy to setup locally so that is still recommended because its a solution that ages a little better given the maturity and supporting tools Postgres offers.
 
 ----------
