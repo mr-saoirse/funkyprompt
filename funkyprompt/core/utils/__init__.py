@@ -6,7 +6,7 @@ import os
 os.environ["LOGURU_LEVEL"] = "DEBUG"
 
 
-def help(question:str, raw_search:bool=False):
+def help(question:str, raw_search:bool=False, provider=None):
     """
     ask a question about the codebase
     """
@@ -17,23 +17,27 @@ def help(question:str, raw_search:bool=False):
     
     lm_client: LanguageModel = language_model_client_from_context(None)
     
-    class HelpModel(AbstractContentModel):
+    class CodebaseHelpModel(AbstractContentModel):
         class Config:
             name: str = 'codebase'
             namespace: str = 'core'
             description: str = f"Please answer questions about the funkyprompt codebase using the search results you are provided"
             
-    result =  entity_store(HelpModel).ask(question)
+    provider = provider or entity_store
+    result =  provider(CodebaseHelpModel).ask(question)
     
     if raw_search:
         return result
     
     messages= MessageStack.from_q_and_a(question, result)
+    
+    #return messages
+
     response = lm_client(messages=messages, functions=None, context=None)
        
     return response
 
-def index_codebase(include_api_json=True):
+def index_codebase(include_api_json=True, provider = None):
     """
     add all the code into a vector store in a crude sort of way
     """
@@ -42,7 +46,8 @@ def index_codebase(include_api_json=True):
     from funkyprompt.services import entity_store
     from funkyprompt.core import AbstractContentModel
     from funkyprompt.core.utils.env import get_repo_root
-    
+
+    provider = provider or entity_store
     def split_string_into_chunks(string, chunk_size=20000):
         """simple chunker"""
         return [string[i : i + chunk_size] for i in range(0, len(string), chunk_size)]
@@ -109,7 +114,7 @@ def index_codebase(include_api_json=True):
     add records to the store 
     """
 
-    entity_store(M).update_records(records)
+    provider(M).update_records(records)
     
     logger.info(f'Done - added {len(records)} records')
 

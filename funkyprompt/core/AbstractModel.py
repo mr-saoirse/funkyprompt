@@ -147,7 +147,18 @@ class AbstractModel(BaseModel):
         data = {k: check_complex(v) for k, v in data.items() if k in fields}
 
         return data
+    
+    @classmethod
+    def to_arrow_schema(cls):
+        """
+        get the arrow schema from the pydantic type
+        """
+        from funkyprompt.core.types.pydantic import pydantic_to_arrow_schema
 
+        return pydantic_to_arrow_schema(
+            cls
+        )
+        
     @classmethod
     def get_embedding_fields(cls) -> typing.Dict[str, str]:
         """returns the fields that have embeddings based on the attribute - uses our convention"""

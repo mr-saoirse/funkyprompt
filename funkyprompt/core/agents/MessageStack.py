@@ -72,7 +72,7 @@ class MessageStack(BaseModel):
         messages = values.get('messages') or []
 
         model = values.get("model")
-        prompt = "Answer the users questions using world knowledge or any provided functions. Always check that you can use functions that you have. Do not use a search function if another function can be used in place. "
+        prompt = "Answer the users questions using 1. provided data, 2. any provided functions or 3. world knowledge depending on the context. Always check that you can use functions that you have. Do not use a search function if another function or existing data can be used in place. "
         if hasattr(model, "get_model_description"):
             prompt += (model.get_model_description() or 'answer the users question')
         """update messages from context, model and question"""
@@ -155,7 +155,7 @@ class MessageStack(BaseModel):
         
         """
         messages= [
-            SystemMessage(content=f'The data below were retrieved from a resource and can be used to answer the users question\n````{json.dumps(data,default=str)}``')
+            SystemMessage(content=f'The data below were retrieved from a resource and can be used to answer the users question\n````json{json.dumps(data,default=str)}``')
         ]
         return MessageStack(question=question,messages=messages, model=observer_model)
     
