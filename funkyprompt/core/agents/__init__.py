@@ -1,4 +1,4 @@
-DEFAULT_MODEL = "gpt-4o-2024-05-13"
+DEFAULT_MODEL = "gpt-4o-2024-08-06"
 GPT_MINI = "gpt-4o-mini"
 
 

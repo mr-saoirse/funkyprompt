@@ -100,6 +100,8 @@ Step 4
 
 secondary
 - the observer/mediator pattern
+- contextual maps -> associative memory map to a hashable session id 
+- 
 
 ## Funkybrain
 A reference app that riffs on the funkyprompt. This does some useful things that you would need to build anything ore serious such as scraping and integration tools or just more types and examples in general.

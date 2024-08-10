@@ -198,7 +198,7 @@ class SqlHelper:
         )
         fields = typing.get_type_hints(entity_model)
         field_descriptions = entity_model.model_fields
-        id_field = "id"  # <- the id is a hash of the name or a unique id and we use it as the constrain by convention
+        id_field = cls.id_field
 
         columns = []
         for field_name, field_type in fields.items():

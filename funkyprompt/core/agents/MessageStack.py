@@ -69,12 +69,12 @@ class MessageStack(BaseModel):
         """
         we basically want a prompt and a question but we can add in other stuff too
         """
-        messages = []
+        messages = values.get('messages') or []
 
         model = values.get("model")
         prompt = "Answer the users questions using world knowledge or any provided functions. Always check that you can use functions that you have. Do not use a search function if another function can be used in place. "
         if hasattr(model, "get_model_description"):
-            prompt += model.get_model_description()
+            prompt += (model.get_model_description() or 'answer the users question')
         """update messages from context, model and question"""
 
         messages.append(SystemMessage(content=prompt))
@@ -143,7 +143,22 @@ class MessageStack(BaseModel):
             context (CallingContext, optional): context is used to determine the model provider and other session context. Defaults to None.
         """
         return []
-
+    
+    @classmethod
+    def from_q_and_a(cls, question:str, data: typing.Any, observer_model:AbstractModel=AbstractEntity):
+        """
+        often we will have a question that will trigger a search
+        the search result can then be 'observed' by an observer model that responds to the user
+        the result of this is typically to provide a formatted response to the user
+        
+        the data should be serializable to json
+        
+        """
+        messages= [
+            SystemMessage(content=f'The data below were retrieved from a resource and can be used to answer the users question\n````{json.dumps(data,default=str)}``')
+        ]
+        return MessageStack(question=question,messages=messages, model=observer_model)
+    
     @classmethod
     def format_function_response_data(
         cls, name: str, data: typing.Any, context: CallingContext = None

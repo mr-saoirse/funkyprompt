@@ -177,7 +177,11 @@ class PostgresService(DataServiceBase):
 
         if records:
             query = helper.upsert_query(batch_size=len(records))
-            result = self.execute_upsert(query=query, data=data)
+            try:
+                result = self.execute_upsert(query=query, data=data)
+            except:
+                logger.info(f"Failing to run {query}")
+                raise
 
             """for now do inline but this could be an async thing to not block"""
             self.queue_update_embeddings(result)

@@ -149,6 +149,10 @@ class Runner:
         """log questions to store unless disabled"""
 
         self.dump(question, response, context)
+        
+        """queue entity extraction and consider observer
+           response = observer(response)
+        """
 
         return response
 
@@ -163,6 +167,7 @@ class Runner:
 
         """for any pydantic response"""
         if hasattr(response, "model_dump_json"):
+            """dumpy state"""
             response = response.model_dump_json()
 
         entity_store(ConversationModel).update_records(
@@ -173,6 +178,7 @@ class Runner:
                 content={"question": questions, "response": response},
             )
         )
+
 
     def __call__(
         self, question: str, context: CallingContext = None, limit: int = None
@@ -187,4 +193,6 @@ class Runner:
 """
 #TODO: general test e.g. call a function with limit=1, it doesnt loop and confirm the result and therefore we might not get behviouar expected
 generally we want to ensure consistent output    
+
+the response should always be JSON but revert to a simple form {response=}
 """

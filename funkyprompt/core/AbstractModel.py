@@ -16,10 +16,13 @@ DEFAULT_NAMESPACE = "default"
 
 
 class AbstractModel(BaseModel):
-    class Config:
-        name: str = "abstract_model"
-        namespace: str = "core"
-        description: str = "Provide a rich model description"
+    """"""
+    
+    """should have a name for the naming logic to work and still have config take precedence"""
+    # class Config:
+    #     name: str = "abstract_model"
+    #     namespace: str = "core"
+    #     description: str = "Provide a rich model description"
 
     id: typing.Optional[str | uuid.UUID] = Field(
         default=None,
@@ -69,7 +72,7 @@ class AbstractModel(BaseModel):
         """
         the object name
         """
-        return f"{cls.__module__}.{cls.__name__}"
+        return f"{cls.get_model_namespace()}.{cls.get_model_name()}"
 
     @classmethod
     def get_model_key_field(cls):

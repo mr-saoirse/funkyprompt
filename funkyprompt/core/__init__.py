@@ -1,4 +1,4 @@
-from funkyprompt.core.AbstractModel import AbstractModel, AbstractEntity, Field, typing
+from funkyprompt.core.AbstractModel import AbstractModel, AbstractEntity, Field, typing, AbstractContentModel
 from funkyprompt.core.ConversationModel import ConversationModel
 from funkyprompt.core.fields.annotations import OpenAIEmbeddingField
 
