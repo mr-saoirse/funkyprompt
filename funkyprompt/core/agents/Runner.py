@@ -19,7 +19,7 @@ from funkyprompt.services import entity_store
 from . import MessageStack
 from . import FunctionCall, FunctionManager, Function
 import typing
-
+import traceback
 
 class Runner:
     """Runners are simple objects that provide the interface between types and language models
@@ -57,9 +57,32 @@ class Runner:
         self._context = None
         """register the model's functions which can include function search"""
         self._function_manager.register(self.model)
+        """the basic bootstrapping means asking for help, entities(types) or functions"""
         self._function_manager.add_function(self.lookup_entity)
         self._function_manager.add_function(self.help)
+        self._function_manager.add_function(self.activate_functions_by_name)
+        """more complex things will happen from here when we traverse what comes back"""
     
+    def activate_functions_by_name(self, function_names: str|typing.List[str]):
+        """
+        If you encounter a full name of a function, you can activate it here.
+        Once you activate it, it will be ready for use. 
+        Supply one or more function names
+
+        Args:
+            function_names: one or more function names
+        """
+        
+        from funkyprompt.entities.nodes import Project
+        
+        self._function_manager.add_function(Project.upsert_entity)
+        
+        """the function manage can activate the functions"""
+        
+        return {
+            'status': f"Re: the functions {function_names}, now ready for use. please go ahead and invoke."
+        }
+        
     def lookup_entity(self, key:str):
         """lookup entity by one or more keys
         
@@ -72,11 +95,17 @@ class Runner:
         """todo test different parameter inputs e.g. comma separated"""
         entities =  entity_store(self.model).get_nodes_by_name(key)
         
-        """register entity functions if needed or wait for the agent to ask to register them
-           this is tricky because you need the class instance
+        """register entity functions if needed and wait for the agent to ask to activate them
+           we are not being efficient here by checking if we already have this entity (TODO:)
         """
+        for e in entities:
+            self._function_manager.register(e)
         
-        return entities
+        """
+        when we return the entities, its better to return them with metadata 
+        (as opposed to just fetching the record data only)
+        """
+        return AbstractModel.describe_models(entities)
 
     def help(self, questions: str | typing.List[str]):
         """if you are stuck ask for help with very detailed questions to help the planner find resources for you.
@@ -103,26 +132,34 @@ class Runner:
             function_call (FunctionCall): the payload send from an LLM to call a function
         """
         f = self._function_manager[function_call.name]
-
-        try:
-            """try call the function - assumes its some sort of json thing that comes back"""
-            data = f(**function_call.arguments) or {}
-            data = MessageStack.format_function_response_data(
-                function_call.name, data, self._context
-            )
-            """if there is an error, how you format the message matters - some generic ones are added
-            its important to make sure the format coincides with the language model being used in context
-            """
-        except TypeError as tex:
-            utils.logger.warning(f"Error calling function {tex}")
-            data = MessageStack.format_function_response_type_error(
-                function_call.name, tex, self._context
-            )
-        except Exception as ex:
-            utils.logger.warning(f"Error calling function {ex}")
+        
+        if not f:
+            message = f"attempting to load function {function_call.name} which is not activated - please activate it"
+            utils.logger.warning(message)
             data = MessageStack.format_function_response_error(
-                function_call.name, ex, self._context
+                function_call.name, ValueError(message), self._context
             )
+        else:
+
+            try:
+                """try call the function - assumes its some sort of json thing that comes back"""
+                data = f(**function_call.arguments) or {}
+                data = MessageStack.format_function_response_data(
+                    function_call.name, data, self._context
+                )
+                """if there is an error, how you format the message matters - some generic ones are added
+                its important to make sure the format coincides with the language model being used in context
+                """
+            except TypeError as tex:
+                utils.logger.warning(f"Error calling function {tex}")
+                data = MessageStack.format_function_response_type_error(
+                    function_call.name, tex, self._context
+                )
+            except Exception as ex:
+                utils.logger.warning(f"Error calling function {traceback.format_exc()}")
+                data = MessageStack.format_function_response_error(
+                    function_call.name, ex, self._context
+                )
 
         """update messages with data if we can or add error messages to notify the language model"""
         self.messages.add(data)

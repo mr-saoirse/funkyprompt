@@ -71,34 +71,38 @@ class MessageStack(BaseModel):
         """
         messages = values.get('messages') or []
 
-        model = values.get("model")
-        prompt = "Answer the users questions using 1. provided data, 2. any provided functions or 3. world knowledge depending on the context. Always check that you can use functions that you have. Do not use a search function if another function or existing data can be used in place. "
-        if hasattr(model, "get_model_description"):
-            prompt += (model.get_model_description() or 'answer the users question')
-        """update messages from context, model and question"""
+        if not messages:
+            """these are the default initial messages in the stack"""
+            model = values.get("model")
+            prompt = "Answer the users questions using 1. provided data, 2. any provided functions or 3. world knowledge depending on the context. Always check that you can use functions that you have. Do not use a search function if another function or existing data can be used in place. "
+            if hasattr(model, "get_model_description"):
+                prompt += (model.get_model_description() or 'answer the users question')
+            """update messages from context, model and question"""
 
-        messages.append(SystemMessage(content=prompt))
-        date = values.get("current_date")
-        if date:
-            """this is added because sometimes it screws up date based queries"""
-            messages.append(
-                SystemMessage(
-                    content=f"I observe the current date is {date} so I should take that into account if asked questions about time"
+            messages.append(SystemMessage(content=prompt))
+            date = values.get("current_date")
+            if date:
+                """this is added because sometimes it screws up date based queries"""
+                messages.append(
+                    SystemMessage(
+                        content=f"I observe the current date is {date} so I should take that into account if asked questions about time"
+                    )
                 )
-            )
 
-        function_names = values.get("function_names")
-        if function_names:
-            """this is added because sometimes it seems to need this nudge (TODO:)"""
-            messages.append(
-                UserMessage(
-                    content=f"You can use the following functions by default {function_names} any in some cases you may be able to search and load others"
+            function_names = values.get("function_names")
+            if function_names:
+                """this is added because sometimes it seems to need this nudge (TODO:)"""
+                messages.append(
+                    UserMessage(
+                        content=f"""You can use the following functions by default {function_names} and in some cases you may be able to search and load others. 
+                        If you encounter a new function by name that you do not have, you can always ask for it to be activated and you
+                        should do that without asking the user, calling it where possible."""
+                    )
                 )
-            )
 
-        """finally add the users question"""
-        if values.get("question"):
-            messages.append(UserMessage(content=values.get("question")))
+            """finally add the users question"""
+            if values.get("question"):
+                messages.append(UserMessage(content=values.get("question")))
 
         values["messages"] = messages
 
@@ -172,6 +176,10 @@ class MessageStack(BaseModel):
 
         Returns: formatted messages for agent as a dict
         """
+        
+        """Pydantic things """
+        if hasattr(data,'model_dump'):
+            data = data.model_dump()
 
         return Message(
             role="function",
@@ -222,8 +230,8 @@ class MessageStack(BaseModel):
             role="system",
             name=f"{str(name.replace('.','_'))}",
             content=f"""This function failed - you should try different arguments or a different function. - {ex}. 
-                        If not data found you must search for another function if you can to answer the users question. 
-                        Otherwise check the error and consider your input parameters """,
+If no data are found you must search for another function if you can to answer the users question. 
+Otherwise check the error and consider your input parameters """,
         )
 
     """smart pruning of messages"""

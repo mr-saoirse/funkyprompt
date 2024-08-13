@@ -29,18 +29,21 @@ class FunctionManager:
     def __setitem__(self, key, value):
         self._functions[key] = value
 
-    def register(self, model: AbstractModel, include_function_search: bool = False):
-        """register the functions of the model
+    def register(self, model: AbstractModel, qualify_function: bool=False)->typing.List[Function]:
+        """register the functions of the model.
         When registration is done, the functions are added to the stack of functions a runner can use
 
         Args:
             model (AbstractModel): a model that describes the resources and objectives of an agent
-            include_function_search (bool, optional): this allows for dynamic function loading via a help command
         """
+        added_functions = []
         for f in model.get_class_and_instance_methods():
-            self.add_function(f)
+            """if the functions need to be qualified by the model we can do that"""
+            alias = None if not qualify_function else f"{model.get_model_namespace()}_{model.get_model_name()}_{f.__name}"
+            added_functions.append(self.add_function(f,alias=alias))
+        return added_functions
 
-    def add_function(self, f: typing.Callable | "Function"):
+    def add_function(self, f: typing.Callable | "Function",alias:str=None):
         """A callable function or Function type can be added to available functions.
         The callable is a python instance function that can be wrapped in a Function type
         or the Function can type can be added directly.
@@ -51,7 +54,7 @@ class FunctionManager:
         """
 
         if not isinstance(f, Function) and callable(f):
-            f = Function.from_callable(f)
+            f = Function.from_callable(f,alias=alias)
 
         self[f.name] = f
 

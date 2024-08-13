@@ -25,15 +25,45 @@ class TypeInfo(BaseModel):
         return {}
 
 
-def get_class_and_instance_methods(cls):
-    """inspect the methods on the type for methods"""
+def get_defining_class(member,cls):
+    defining_class = getattr(member, '__objclass__', None)
+    if defining_class:
+        return defining_class
+
+    for base_class in cls.mro():
+        if member.__name__ in base_class.__dict__:
+            return base_class
+    return None
+    
+def is_strict_subclass(subclass, superclass):
+    return issubclass(subclass, superclass) and subclass is not superclass
+
+def get_class_and_instance_methods(cls, inheriting_from: type=None):
+    """inspect the methods on the type for methods
+    
+    by default only the classes methods are used or we can take anything inheriting from a base such as AbstractModel (not in)
+    
+    Args:
+        inheriting_from: create the excluded base from which to inherit. 
+        In our case we want to treat the AbstractModel as a base that does not share properties
+    """
     methods = []
     class_methods = []
 
+    def __inherits(member):
+        """
+        find out of a member inherits from something we care about, not including the thing itself
+        """
+        if not inheriting_from:
+            return True
+        
+        """we can traverse up to a point"""
+        return  is_strict_subclass(get_defining_class(member,cls), inheriting_from)
+    
     for name, member in getmembers(cls):
         if isfunction(member) or ismethod(member):
             # Check if the method belongs to the class and not inherited
-            if member.__qualname__.startswith(cls.__name__):
+            if member.__qualname__.startswith(cls.__name__) or __inherits(member):
                 if isinstance(member, types.FunctionType):
                     methods.append(getattr(cls, name))
                 elif isinstance(member, types.MethodType):

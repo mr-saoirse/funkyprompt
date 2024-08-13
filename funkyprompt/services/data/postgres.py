@@ -289,7 +289,19 @@ class PostgresService(DataServiceBase):
         valid_entities = []
         for d in data:
             try:
-                valid_entities.append(cls(d["model"]).select_one(d["name"]))
+                """sketches: we want a generalized way to load entities and register their metadata"""
+                e = cls(d["model"]).select_one(d["name"])
+                #e = e.model_dump()
+                #this is something we should always know
+                #e['entity_type'] = 'project'
+                #this is a test spoof
+                # e['available_functions'] = [
+                #     {
+                #         'name': 'upsert_entity',
+                #         'description': 'call this function to save the project'
+                #     }
+                # ]
+                valid_entities.append(e)
             except Exception as ex:
                 logger.warning(f"Failed to load an entity from the graph node - {d}")
          

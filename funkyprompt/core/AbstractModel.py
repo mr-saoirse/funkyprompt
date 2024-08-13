@@ -6,6 +6,7 @@ from funkyprompt.core.types.sql import SqlHelper
 from funkyprompt.core.types.cypher import CypherHelper
 from funkyprompt.core.utils.ids import funky_id
 import datetime
+from pydantic._internal._model_construction import ModelMetaclass
 
 """
 names are always unique in funkyprompt for key-value entity lookups
@@ -216,11 +217,12 @@ _the child types will appear first followed by the parent model to use_
 
         # TODO: by default we do not show all base methods as agent-callable but we can register run_search and add here (crud)
 
-        methods = inspection.get_class_and_instance_methods(cls)
+        if not isinstance(cls, ModelMetaclass):
+            cls = cls.__class__
+            
+        """any methods that are not on the abstract model are fair game"""
+        methods = inspection.get_class_and_instance_methods(cls, inheriting_from=AbstractModel)
 
-        # for additional in ["run_search", "add"]:
-        #     if hasattr(cls, additional):
-        #         methods.append(getattr(cls, additional))
         """return everything but hide privates"""
         return [m for m in methods if not m.__name__[:1] == "_"]
 
@@ -251,6 +253,41 @@ _the child types will appear first followed by the parent model to use_
         lm_client: LanguageModel = language_model_client_from_context(None)
         response = lm_client(messages=messages, functions=None, context=None)
         return response 
+    
+    @classmethod
+    def describe_models(cls, models : typing.List["AbstractModel"],**kwargs)->dict:
+        """
+        Given a collection of models, we return the model data collection but also provide the distinct list of entity metadata
+        """
+        
+        metadata = {}
+        
+        data = []
+        for m in models:
+            """dump and qualify the data"""
+            d = m.model_dump()
+            d['model_type'] = m.get_model_fullname()
+            data.append(d)
+            
+            """now prepare the metadata starting with functions"""
+            functions = []
+            for f in m.get_class_and_instance_methods():
+                functions.append({
+                    'function_name': f"{m.get_model_namespace()}_{m.get_model_name()}_{f.__name__}" ,
+                    'description' : f.__doc__
+                })
+            
+            """add the models into a map, unique on the entity type"""
+            metadata[m.get_model_fullname()] = {
+                'about': m.get_model_description(),
+                'functions': functions,
+                'fields': {k: v.description for k,v in cls.model_fields.items()}
+            }
+            
+        return {
+            'type_metadata': metadata,
+            'records': data
+        }
 
 class AbstractEntity(AbstractModel):
     """the abstract entity is a sub class of model that admits a unique name0
@@ -284,7 +321,7 @@ class AbstractEntity(AbstractModel):
         return entity_store(cls).ask(questions, limit, **kwargs)
 
     @classmethod
-    def upsert_entity(cls, name:str, data_delta: dict):
+    def upsert_entity(cls, name:str, data_delta: dict)->"AbstractModel":
         """Save the entity by merging new and old data to the final object.
         You should be efficient by sending only the changed fields.
         If a field is not changed omit it. 
@@ -311,7 +348,15 @@ class AbstractEntity(AbstractModel):
             existing = existing.model_dump()
             existing.update(data_delta)
         existing['name'] = name
-        return store.update_records(cls(**existing))
+        response =  store.update_records(cls(**existing))
+        if response:
+            """assumed contract on update one"""
+            response = response[0]
+        """if the response is failing there may be times you want to see 
+        what the attributes are for now we are strict"""
+        response = cls.model_validate(response)
+      
+        return response
         
 
 class AbstractContentModel(AbstractEntity):
