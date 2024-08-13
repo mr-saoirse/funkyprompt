@@ -27,7 +27,13 @@ class CypherHelper:
         q = f"""
         """
         return None
-
+    
+    def upsert_relationship_query(self, relationships):
+        """
+        the entities may contain relationships or may not
+        """
+        return None
+    
     def upsert_node_query(self, nodes):
         """
         create a node upsert query - any attributes can be upserted

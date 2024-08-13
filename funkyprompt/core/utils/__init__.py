@@ -1,10 +1,38 @@
 from . import dates, env
 from loguru import logger
 import os
-
+from glob import glob
 
 os.environ["LOGURU_LEVEL"] = "DEBUG"
 
+def ingest_files(directory, name, namespace='public',provider=None):
+    """
+    a very lazy file ingester
+    """
+    from funkyprompt.core import AbstractContentModel
+    from tqdm import tqdm
+    from funkyprompt.services import entity_store
+    
+    M = AbstractContentModel.create_model(name=name, namespace=namespace)
+    try:
+        M._register()
+    except:
+        pass
+    provider = provider or entity_store
+    store = provider(M)
+    
+    records= []
+    for file in tqdm(glob(f"{directory.rstrip('/')}/*.*")):
+        with open(file) as f:
+            data = f.read()
+            """todo this is a temp hack because we have not thought out how we want to deal with entity names for graphs"""
+            file = file.split('/')[-1].replace(' ','').replace(',','').split('.')[0]
+            
+            if len(data):
+                records.append(M(name=file, content=data))
+    store.update_records(records)
+
+    
 
 def help(question:str, raw_search:bool=False, provider=None):
     """

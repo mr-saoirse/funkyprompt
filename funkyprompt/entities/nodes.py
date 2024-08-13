@@ -4,7 +4,7 @@ from . import GenericEntityTypes
 from pydantic import model_validator
 from ast import literal_eval
 from funkyprompt.core.utils.ids import funky_id
-
+from funkyprompt.entities.relations import ProjectTask, TaskResource
 
 class Project(AbstractEntity):
     class Config:
@@ -27,6 +27,8 @@ class Project(AbstractEntity):
         description="Optional category labels - should link to topic entities",
         entity_name=GenericEntityTypes.TOPIC,
     )
+    
+
 
     @model_validator(mode="before")
     @classmethod
@@ -53,7 +55,7 @@ class Task(Project):
             It is possible to add and search tasks and build relationships between tasks and other entities"""
         )
 
-    project: typing.Optional[str] = Field(
+    project_name: typing.Optional[str] = Field(
         default_factory=list,
         description="The associated project",
         entity_name=GenericEntityTypes.PROJECT,
@@ -63,6 +65,22 @@ class Task(Project):
         default="TODO",
         description="The status of the project e.g. TODO, DONE",
     )
+    
+    resource_names: typing.Optional[typing.List[str]] = Field(
+        default_factory=list,
+        description="A list of resources (unique name) that might be used in the task",
+        entity_name=GenericEntityTypes.RESOURCE,
+    )
+    actionable: typing.Optional[str] = Field(default=None, description="A Low|Medium|High estimate of actionability")
+    utility: typing.Optional[float] = Field(default=None, description="If the utility of the task can be estimated for the user's project or goals")
+    effort: typing.Optional[float] = Field(default=None, description="An estimate of the difficulty of the task given what has been done so far")
+   
+    def get_relationships(cls):
+        """
+        instance method provides a list of edges defined on the object such as ProjectTasks
+        instance methods are not accessible to agents
+        """
+        return None
 
     @model_validator(mode="before")
     @classmethod
@@ -153,3 +171,123 @@ class Task(Project):
         from funkyprompt.services import entity_store
 
         return entity_store(cls).ask(questions, after_date=after_date)
+
+class Resource(AbstractEntity):
+    class Config:
+        name: str = "resource"
+        namespace: str = "public"
+        description: str = (
+            """Resources are websites, data or people that can be involved in a project or task
+               The may have unique domain names and they can be described
+            """
+        )
+        
+    uri: typing.Optional[str] = Field(description='a unique resource identifier if know')
+    image_uri: typing.Optional[str] = Field(description='a representative image for the resource if known')
+    category: str = Field(default=None,description="Resources can include IDEA|PERSON|WEBSITE|DATA|SOFTWARE and other categories")
+    labels: typing.Optional[typing.List[str]] = Field(description='general labels to attach to the entity beyond category',default=None)
+    
+    
+
+    
+class TaskIdeaSummary(AbstractEntity):
+    """this is a higher level example for testing the ideas
+       the formatting of the type requires special care and then we will harden it in the pydantic type
+       we should do a few different examples before we do because the model is very sensitive to the precise formatting of this
+       however it should be something we can standardize for our scope
+       we need something concise that expands child types
+       also the dynamic data would be loaded based on some model or an entity lookup
+    """
+    class Config:
+        name: str = 'task_idea_summary'
+        namespace: str = 'public'
+        description = """You are provided with a list of users prioritized goals and some data that could be useful.
+Please summarize the main idea content and list resources in the form of entities and domains/websites.
+Then produce a list of tasks as they relate to the users goals and projects.
+"""
+    
+    """list resources | specific type -> people, companies, domain names, links, ideas"""
+    content: str =  Field(default=None, description="Please summarize all the main useful ideas in the text")
+        
+    """lots of categorized resources - resource should also contain the category name so we can flat map db
+       but we could override with an attribute if we really wanted to on our side - its just not clear what we want
+       it might be an idea in this version to always be constrained to one child type entity and one child type relationships 
+    """
+    domain_names: typing.List[Resource] = Field(default_factory=list, description="a list of domain names, a category of resources")
+    real_world_entities: typing.List[Resource] = Field(default_factory=list, description="a list of real world entities like people, websites, software, companies etc - these are a category of resources")
+        
+    """tasks which are a relationship type"""
+    tasks: typing.List[Task] = Field(default_factory=dict, description="List tasks and the goal they map to. The goals of the user are listed and you suggest what actions they can take with respect to goals")
+    
+    @classmethod
+    def _get_child_models(cls):
+        """"""
+        return [Resource]
+    @classmethod
+    def _get_prompting_data(cls):
+        """
+        this provides data injected into prompts for this type - can be dynamically loaded
+        """
+        return f"""
+### User's prioritized goals
+```text
+1. create a business for personal knowledge management AI with rich support for databases of different types such as key-value, sql, vector and graph
+2  write as much as possible and find good tools to manage my writing
+3. understand the challenges people face today in terms of managing knowledge and personal growth
+4. learn new AI methods and data modeling methods
+5. build integrations from popular services and app
+```
+"""
+    
+    @classmethod
+    def get_model_as_prompt(cls):
+        """
+        ---
+        """
+        #
+        P = f"""
+        
+{cls._get_prompting_data()}
+
+-----------------------------
+
+_You will respond in Json using the following schema_
+
+# Response schema
+
+```python
+class TaskIdeaSummary(BaseModel)
+    id: typing.Union[str, uuid.UUID, NoneType] # A unique hash/uuid for the entity. The name can be hashed if its marked as the key
+    name: <class 'str'> # The name is unique for the entity
+    content: <class 'str'> # Please outline all the main useful ideas in the text in a lot of detail
+    domain_names: typing.List[Resource] # a list of domain names, a category of resources
+    real_world_entities: typing.List[Resource] # a list of real world entities like people, websites, software, companies etc - these are a category of resources
+    tasks: typing.List[Task] # List tasks and the goal they map to. The goals of the user are listed and you suggest what actions they can take with respect to goals
+```
+
+#### This model uses child types below...
+
+```python
+class Resource(BaseModel)
+    id: typing.Union[str, uuid.UUID, NoneType] # A unique hash/uuid for the entity. The name can be hashed if its marked as the key
+    name: <class 'str'> # The name is unique for the entity
+    url: typing.Optional[str] # the full url if given
+    image_uri: typing.Optional[str] # a representative image for the resource if known
+    category: <class 'str'> # Resources can include IDEA|PERSON|WEBSITE|DATA|SOFTWARE and other categories
+    labels: typing.Optional[typing.List[str]] # general labels to attach to the entity beyond category
+```
+
+
+```python
+class Task(BaseModel)
+    name: <class 'str'> # The name is unique for the entity
+    content: str # a description of the entity
+    project: dict #the listed project or goal that this task would relate to - use the map of the `index` and `description` e.g. {{1:'my goal'}}
+    utility_score: float # the possibly utility score with respect the users goals/project on a scale of 0 to 10
+    actionability: str # the actionability of this task on a scale Low|Medium|High
+    effort_days: int # the effort in days for this task
+```
+
+        """
+        
+        return P

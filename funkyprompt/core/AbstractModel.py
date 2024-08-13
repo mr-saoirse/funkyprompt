@@ -5,6 +5,7 @@ from funkyprompt.core.types import inspection
 from funkyprompt.core.types.sql import SqlHelper
 from funkyprompt.core.types.cypher import CypherHelper
 from funkyprompt.core.utils.ids import funky_id
+import datetime
 
 """
 names are always unique in funkyprompt for key-value entity lookups
@@ -170,6 +171,13 @@ class AbstractModel(BaseModel):
         return needs_embeddings
 
     @classmethod
+    def _get_child_models(cls) -> typing.List["AbstractModel"]:
+        """
+        if this is implemented, we will show the child types in the model description
+        """
+        return []
+    
+    @classmethod
     def get_model_as_prompt(cls) -> str:
         """the model as prompt provides a schema and also the description of the model
         if the base class implements `_get_prompting_data` then data will be loaded into context
@@ -183,14 +191,19 @@ class AbstractModel(BaseModel):
 
         from funkyprompt.core.types.pydantic import get_pydantic_properties_string
 
-        return f"""## {cls.get_model_fullname()}
+        return f"""## About the model: {cls.get_model_name().upper()}
     
-    *Description*: {cls.get_model_description()}
+### Description
+
+{cls.get_model_description()}
     
-    *Field info*:
-    {get_pydantic_properties_string(cls)}
-    
-    {injected_data}
+### About the types and fields you in the response model (JSON)
+
+_the child types will appear first followed by the parent model to use_
+
+{get_pydantic_properties_string(cls, cls._get_child_models())}
+
+{injected_data}
     """
 
     #############
@@ -221,7 +234,23 @@ class AbstractModel(BaseModel):
         from funkyprompt.services import entity_store
 
         return entity_store(cls)._create_model()
-
+    
+    @classmethod
+    def _ask(cls, question:str, raw_results:bool=False):
+        """convenience method to load up an entity store with the model and 
+        ask a question and optionally run the wrong store query
+        this is hidden for now so as not to harden this interface
+        """
+        from funkyprompt.services.models import language_model_client_from_context
+        from funkyprompt.services import entity_store
+        from funkyprompt.core.agents import   MessageStack, LanguageModel
+        result = entity_store(cls).ask(question) 
+        if raw_results:
+            return result
+        messages= MessageStack.from_q_and_a(question, result)
+        lm_client: LanguageModel = language_model_client_from_context(None)
+        response = lm_client(messages=messages, functions=None, context=None)
+        return response 
 
 class AbstractEntity(AbstractModel):
     """the abstract entity is a sub class of model that admits a unique name0
@@ -254,6 +283,36 @@ class AbstractEntity(AbstractModel):
 
         return entity_store(cls).ask(questions, limit, **kwargs)
 
+    @classmethod
+    def upsert_entity(cls, name:str, data_delta: dict):
+        """Save the entity by merging new and old data to the final object.
+        You should be efficient by sending only the changed fields.
+        If a field is not changed omit it. 
+        If a field has extra content, show the combined content for the field.
+        
+        Args:
+            name: str : the unique name of the object
+            data_delta (dict): the object delta
+
+        """
+        from funkyprompt.services import entity_store
+        
+        """the rationale here is not so much to save, 
+           which we can do ourselves, but merge the old and new context from the language model
+           another option would be to send deltas which we could load and merge the existing
+           the name is added above to allow new objects to be saved and to force the inclusion of the name in the changeset
+           we can recover conversations about the object by id
+           on the one we want to keep it simple and fuzzy but we dont want to drop important facts
+           BIG QUESTION: Ability to merge memory!
+           """
+        store = entity_store(cls)
+        existing = store.select_one(name) 
+        if existing:
+            existing = existing.model_dump()
+            existing.update(data_delta)
+        existing['name'] = name
+        return store.update_records(cls(**existing))
+        
 
 class AbstractContentModel(AbstractEntity):
     """use to generate generic content types
@@ -286,3 +345,10 @@ class AbstractImageContentModel(AbstractContentModel):
         default=None,
         description="optional image description",  # TODO: may add an open embedding to this
     )
+
+
+class AbstractEdge(BaseModel):
+    
+    timestamp: datetime.datetime
+    source_name: str
+    target_name: str

@@ -47,6 +47,9 @@ class Runner:
         self.model = model or DefaultAgentCore()
         self._function_manager = FunctionManager()
         self.initialize()
+        
+    def __repr__(self):
+        return f"Runner({(self.model.get_model_fullname())})"
 
     def initialize(self):
         """register the functions and other metadata from the model"""
@@ -54,7 +57,26 @@ class Runner:
         self._context = None
         """register the model's functions which can include function search"""
         self._function_manager.register(self.model)
+        self._function_manager.add_function(self.lookup_entity)
         self._function_manager.add_function(self.help)
+    
+    def lookup_entity(self, key:str):
+        """lookup entity by one or more keys
+        
+        Args:
+            key: one or more keys to use to lookup the entity or entities 
+        """
+        
+        from funkyprompt.services import entity_store
+
+        """todo test different parameter inputs e.g. comma separated"""
+        entities =  entity_store(self.model).get_nodes_by_name(key)
+        
+        """register entity functions if needed or wait for the agent to ask to register them
+           this is tricky because you need the class instance
+        """
+        
+        return entities
 
     def help(self, questions: str | typing.List[str]):
         """if you are stuck ask for help with very detailed questions to help the planner find resources for you.
@@ -189,9 +211,17 @@ class Runner:
         context = context or CallingContext()
         return self.run(question, context, limit=limit)
 
-
+    def explain(cls, data:dict|typing.List[dict]):
+        """
+        it is often convenient to run the runner directly on data which uses this standard recipe
+        """
+        
+        import json 
+        P = f"please explain the following data according to your guidelines - ```{json.dumps(data)}``` and respond in a json format - use the model provided"
+        return cls(P)
+        
 """
-#TODO: general test e.g. call a function with limit=1, it doesnt loop and confirm the result and therefore we might not get behviouar expected
+#TODO: general test e.g. call a function with limit=1, it doesnt loop and confirm the result and therefore we might not get behaviour expected
 generally we want to ensure consistent output    
 
 the response should always be JSON but revert to a simple form {response=}

@@ -269,8 +269,10 @@ class Function(AbstractEntity):
                 return function(*args, **kwargs)
             except:
                 import traceback
-
-                # print(traceback.format_exc())
+                print('failing to call function directly - there is one case where we might want to use the bound function but generally not')
+                
+                raise
+                print(traceback.format_exc())
                 # undecided about bound versus unbound functions
                 return function.__func__(*args, **kwargs)
         raise Exception(

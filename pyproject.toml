@@ -17,6 +17,7 @@ typer = "^0.12.3"
 psycopg2-binary = "^2.9.9"
 loguru = "^0.7.2"
 openai = "^1.37.1"
+beautifulsoup4 = "^4.12.3"
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.4.2"

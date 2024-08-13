@@ -18,6 +18,7 @@ from enum import Enum
 class GenericEntityTypes(Enum):
     TOPIC = "topic"
     PROJECT = "project"
+    RESOURCE = "resource"
 
 
 from funkyprompt.entities.nodes import *

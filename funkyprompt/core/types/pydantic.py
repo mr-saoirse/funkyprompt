@@ -6,12 +6,16 @@ import sys
 import inspect
 import types
 
-def get_pydantic_properties_string(cls):
+def get_pydantic_properties_string(cls, child_types=None):
     """
     this is useful as a prompting device
     """
     annotations = typing.get_type_hints(cls)
-    class_str = f"class {cls.__name__}(BaseModel)\n"
+    
+    """if known child types are provided, we render them first"""
+    child_strings = f"\n\n".join(get_pydantic_properties_string(t) for t in child_types or [])
+    
+    class_str = f"\n\nclass {cls.__name__}(BaseModel)\n"
     for field_name, field_type in annotations.items():
         field_default = getattr(cls, field_name, ...)
         field_info = cls.__fields__.get(field_name)
@@ -30,7 +34,7 @@ def get_pydantic_properties_string(cls):
                 class_str += f" - {field_name}: {type_str} = Field(default={repr(field_default.default)}) {description}\n"
             else:
                 class_str += f" - {field_name}: {type_str} = {repr(field_default)} {description}\n"
-    return class_str
+    return child_strings + class_str
 
 
 def get_extras(field_info, key: str):

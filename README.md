@@ -2,10 +2,14 @@
 
 [The library is Currently under active development and will change substantially in the coming versions...]
 
+
 Welcome to funkyprompt which aspires to be an extremely lightweight agentic reference. Words like "framework", "library", etc are avoided as this would go against the philosophy of `funkyprompt`. The thing is, we believe you dont need a framework to build agentic systems if you are using external LLMs - you just need some simple, old-school patterns and funkyprompt is an exploration of this. 
 
-The way to think about it is, _how would you write your code if an artificial developer was joining your team?_ 
 
+We are in a nascent generative AI and agent building ecosystem. At such times trying to build frameworks that can be shared as opposed to used internally seems close to useless.  
+Funkyprompt at core is a declarative system to describes systems that can be exposed to a query planner. In agent systems, query planning is the only thing funkyprompt cares about. This focus will become apparent and its value will become apparent.
+
+The way to think about it is, _how would you write your code if an artificial developer was joining your team?_ 
 The funkyprompt answer is you need to go back to basics; objects, fields, functions. 
 Funkyprompt creates some annotations and wrappers around these basic ideas and then provides a simple runner to illustrate how LLMs can be hooked up to the codebase to implement RAG and other agentic patterns. 
 
@@ -16,11 +20,11 @@ We think the following things are hard and worth investing in?
 - How do you guide complex multi-hop Q&A or goal following?
 - How do you evaluate agents over the data in your playground?
 
-We think the answer to all these questions is simple; _types_. What we do not believe in are new stacks and excessive time spent prompt engineering.
+We think the answer to all these questions is simple; _types_ and query planning. What we do not believe in are new stacks and excessive time spent prompt engineering.
 
 ## Types
 
-So how is it that types solve all our problems. 
+So how is it that types solve all our problems and how do you build the core query planner?
 
 1. Objects are the way to encapsulate metadata, fields and functions. It has been like this in software engineering for some time now. Turns out, function calling which is a big part of agentic/rag can benefit from organize functions into types
 2. functions have doc-strings - doc-strings are prompts

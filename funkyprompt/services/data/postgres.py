@@ -11,7 +11,7 @@ In funkyprompt the game is to play nice with AbstractModels so that the postgres
 import json
 import typing
 import psycopg2
-from funkyprompt.core import AbstractModel, AbstractEntity
+from funkyprompt.core import AbstractModel, AbstractEntity, AbstractEdge
 from funkyprompt.services.data import DataServiceBase
 from funkyprompt.core.utils.env import POSTGRES_CONNECTION_STRING, AGE_GRAPH
 from funkyprompt.core.utils import logger
@@ -144,6 +144,7 @@ class PostgresService(DataServiceBase):
             """case of upsert no-query transactions"""
             cls.conn.commit()
         except Exception as pex:
+            logger.warning(f"Failing to execute query {query} for model {cls.model}")
             cls.conn.rollback()
             raise
         finally:
@@ -190,6 +191,7 @@ class PostgresService(DataServiceBase):
                we could in future do this as a transaction in the upserts or as a trigger 
             """
             if issubclass(self.model, AbstractEntity):
+            
                 query = cypher_with_age_wrapper(
                     self.model.cypher().upsert_node_query(records)
                 )
@@ -199,6 +201,17 @@ class PostgresService(DataServiceBase):
                 # it seems like just adding the node as a reference with all the data is the way to do since the use case for entity lookup is one item
                 # and therefore we want a fast insert and on demand we can do a two-pass resolve entities and query them
                 # we could also have a slow background process that indexes the attributes we care about on the node
+                
+            """export relationships - assume the records metadata tells us what rels there are
+               - then for each record, dump the relationships
+               - do we want to allow nodes to carry relationships - lets see
+               
+               IT SEEMS LIKE ADDING THE RELATIONSHIPS VIA AN ENTITY CARRIER SUITS US BEST
+            """
+            
+            
+                
+
 
             return result
 
@@ -273,9 +286,14 @@ class PostgresService(DataServiceBase):
         """
         data = [_parse_vertex_result(x) for x in data]
         """a not so efficient way to load entities but fine for now"""
-        data = [cls(d["model"]).select_one(d["name"]) for d in data]
-
-        return data
+        valid_entities = []
+        for d in data:
+            try:
+                valid_entities.append(cls(d["model"]).select_one(d["name"]))
+            except Exception as ex:
+                logger.warning(f"Failed to load an entity from the graph node - {d}")
+         
+        return valid_entities
 
     def query_graph(self, query: str):
         """query the graph with a valid cypher query"""
