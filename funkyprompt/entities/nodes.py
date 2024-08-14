@@ -24,7 +24,7 @@ class Project(AbstractEntity):
     )
     labels: typing.Optional[typing.List[str] | str] = Field(
         default_factory=list,
-        description="Optional category labels - should link to topic entities",
+        description="Optional category labels - should link to topic entities. When you are using labels you should always upsert or add labels to whatever is there already and never replace unless asked",
         entity_name=GenericEntityTypes.TOPIC,
     )
     

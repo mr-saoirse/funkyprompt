@@ -29,9 +29,13 @@ class FunctionManager:
     def __setitem__(self, key, value):
         self._functions[key] = value
 
+
     def register(self, model: AbstractModel, qualify_function: bool=False)->typing.List[Function]:
         """register the functions of the model.
-        When registration is done, the functions are added to the stack of functions a runner can use
+        When registration is done, the functions are added to the stack of functions a runner can use.
+        we could also add type information but normally this is retrieved with new entities of that type anyway.
+        We should consider a two-stage registration i.e. add the functions but dont necessarily make them visible until they are activated.
+        But this only matters at scale when we have very many entities so we can postpone this for now (TODO: delayed function activate)
 
         Args:
             model (AbstractModel): a model that describes the resources and objectives of an agent

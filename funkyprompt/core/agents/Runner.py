@@ -2,7 +2,7 @@
 The runner can call the LLM in a loop and manage the stack of messages and functions
 Function calling and streaming is handled
 Open telemetry is used to publish metrics which a collector could manage
-If this goes above 200 lines of codes we have failed!
+If this goes above 250 lines of codes we have failed - many of these lines are detailed comments.
 """
 
 from funkyprompt.core import AbstractModel
@@ -13,7 +13,7 @@ from funkyprompt.core.agents import (
     DefaultAgentCore,
     LanguageModel,
 )
-
+import json 
 from funkyprompt.core import ConversationModel
 from funkyprompt.services import entity_store
 from . import MessageStack
@@ -32,7 +32,6 @@ class Runner:
     - import type metadata and functions from the model which controls most everything
     - run an executor loop sending context to the LLM
     - implement the invocation and message setup methods to manage the function and message stack
-
     Under the hood the function manager handles actual function loading and searching
     """
 
@@ -53,31 +52,28 @@ class Runner:
 
     def initialize(self):
         """register the functions and other metadata from the model"""
-
         self._context = None
         """register the model's functions which can include function search"""
         self._function_manager.register(self.model)
         """the basic bootstrapping means asking for help, entities(types) or functions"""
         self._function_manager.add_function(self.lookup_entity)
-        self._function_manager.add_function(self.help)
+        self._function_manager.add_function(self.help) # :)
         self._function_manager.add_function(self.activate_functions_by_name)
         """more complex things will happen from here when we traverse what comes back"""
     
     def activate_functions_by_name(self, function_names: str|typing.List[str]):
         """
-        If you encounter a full name of a function, you can activate it here.
-        Once you activate it, it will be ready for use. 
-        Supply one or more function names
+        If you encounter a full name of a function that you don't have details for, you can activate it here.
+        Once you activate it, it will be ready for use. Supply one or more function names to activate them.
 
         Args:
             function_names: one or more function names
         """
         
-        from funkyprompt.entities.nodes import Project
-        
-        self._function_manager.add_function(Project.upsert_entity)
-        
-        """the function manage can activate the functions"""
+        """NO-OP for now; the function manager can activate the functions - for now we are handling these cases when entities are loaded below.
+           So this is just a placeholder if we want to have a more generalized registry and the idea of lazy activation to reduce cognitive load 
+           - also, this function is a good way IF the agent thinks it has not got access to the function, give it something to do and then nudge it with the message below.
+        """
         
         return {
             'status': f"Re: the functions {function_names}, now ready for use. please go ahead and invoke."
@@ -95,16 +91,11 @@ class Runner:
         """todo test different parameter inputs e.g. comma separated"""
         entities =  entity_store(self.model).get_nodes_by_name(key)
         
-        """register entity functions if needed and wait for the agent to ask to activate them
-           we are not being efficient here by checking if we already have this entity (TODO:)
-        """
+        """register entity functions if needed and wait for the agent to ask to activate them"""
         for e in entities:
             self._function_manager.register(e)
         
-        """
-        when we return the entities, its better to return them with metadata 
-        (as opposed to just fetching the record data only)
-        """
+        """when we return the entities, its better to return them with metadata (as opposed to just fetching the record data only)"""
         return AbstractModel.describe_models(entities)
 
     def help(self, questions: str | typing.List[str]):
@@ -150,12 +141,12 @@ class Runner:
                 """if there is an error, how you format the message matters - some generic ones are added
                 its important to make sure the format coincides with the language model being used in context
                 """
-            except TypeError as tex:
+            except TypeError as tex: #type errors are usually the agents fault
                 utils.logger.warning(f"Error calling function {tex}")
                 data = MessageStack.format_function_response_type_error(
                     function_call.name, tex, self._context
                 )
-            except Exception as ex:
+            except Exception as ex: #general errors are usually our fault
                 utils.logger.warning(f"Error calling function {traceback.format_exc()}")
                 data = MessageStack.format_function_response_error(
                     function_call.name, ex, self._context
@@ -170,9 +161,7 @@ class Runner:
         return self._function_manager.functions
 
     def run(self, question: str, context: CallingContext, limit: int = None):
-        """
-        Ask a question to kick of the agent loop
-        """
+        """Ask a question to kick of the agent loop"""
 
         """setup all the bits before running the loop"""
         lm_client: LanguageModel = language_model_client_from_context(context)
@@ -206,11 +195,12 @@ class Runner:
         """fire telemetry"""
 
         """log questions to store unless disabled"""
-
         self.dump(question, response, context)
         
-        """queue entity extraction and consider observer
-           response = observer(response)
+        """
+        queue entity extraction, consider observer - because we are typed by default, 
+        sometimes we need to format for user while also extracting stuff. This part cannot be delayed but extraction can
+        response = observer(response)
         """
 
         return response
@@ -252,14 +242,11 @@ class Runner:
         """
         it is often convenient to run the runner directly on data which uses this standard recipe
         """
-        
-        import json 
         P = f"please explain the following data according to your guidelines - ```{json.dumps(data)}``` and respond in a json format - use the model provided"
         return cls(P)
         
 """
 #TODO: general test e.g. call a function with limit=1, it doesnt loop and confirm the result and therefore we might not get behaviour expected
 generally we want to ensure consistent output    
-
 the response should always be JSON but revert to a simple form {response=}
 """
