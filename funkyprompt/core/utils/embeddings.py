@@ -25,12 +25,15 @@ def embed_frame(
         """spoofs pandas or polars until we decide to add as lib dep"""
         return [i[name] for i in data]
 
+    COLUMNS = []
+    if len(data):
+        COLUMNS = list(data[0].keys())
     """apply conventions just for ease of testing - recommend passing via the model type"""
     if not id_column:
         id_column = "id"
     if not field_mapping:
         field_mapping = {
-            k.replace("_embedding", ""): k for k in data.columns if "_embedding" in k
+            k.replace("_embedding", ""): k for k in COLUMNS if "_embedding" in k
         }
 
     ids = list(frame_col(id_column))

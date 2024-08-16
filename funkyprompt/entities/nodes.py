@@ -5,6 +5,7 @@ from pydantic import model_validator
 from ast import literal_eval
 from funkyprompt.core.utils.ids import funky_id
 from funkyprompt.entities.relations import ProjectTask, TaskResource
+from funkyprompt.core import utils
 
 class Project(AbstractEntity):
     class Config:
@@ -14,7 +15,10 @@ class Project(AbstractEntity):
             """Projects allow people to manage what they care about, their goals etc. 
             It is possible to add and search projects and build relationships between projects and other entities"""
         )
-
+ 
+    #TODO we need some context of user qualifier for key lookups and other queries. It could be an internal thing to the system
+    #the agent does not need to know the user context but when saving AbstractUserEntity we could qualify the name as user/name 
+    # and when resolving in he entity resolver we could "try" both keys i.e. the qualified one. For now for testing its ok to be single tenant
     name: str = Field(description="The unique name of the project")
     description: str = OpenAIEmbeddingField(
         description="The detailed description of the project"
@@ -291,3 +295,45 @@ class Task(BaseModel)
         """
         
         return P
+    
+    
+"""form filling reference implementation
+commonly we will want to collect data over time and its not obvious how to reliably do this without losing information over time. 
+We rely on the reasoning ability of the agent and implement the pattern on faith for now
+"""
+class PersonPreferences(AbstractEntity):
+    class Config:
+        name: str = "person_preferences"
+        namespace: str = "public"
+        description: str = (
+            """This is an example of a form filling pattern. The users preferences are updated over time. 
+            Generally you should augment and extend the description of the person to create a nice overall summary that does not drop important information.
+            Any concise facts that do not belong in the description could be added as attributes in the `misc_attributes` section if there is value to having a key property. Do not guess attributes and only added guessed attributes under the misc attributes section
+            If you are given information about a user/person, you can update their details and preferences with this object.
+            Entities are updated as type 4 slowly changing dimensions where we store and audit the user-agent conversation separately and we maintain current state in this object
+            but its important not to overwrite any useful information but instead use an intelligent merge strategy.
+            There are various fields that should be upserted for the user during conversation and there may be functions that can be called to save or lookup other details.
+            It is important to consider the context of the user's preference when performing some tasks.
+            You should be careful to unique identify a person. It is good to noramalzie names to title Case and observe ownership case e.g toms or tom's probably refers to the person Tom.
+            """
+        )
+
+    name: typing.Optional[str] = Field(description='users name',default=None)
+    email: typing.Optional[str] = Field(description='users email',default=None)
+    description: typing.Optional[str] = Field(description='A detailed description of the person, their social network, interests etc. it is very important to retain all information that you gather and dont overwrite important details. Use an intelligence merge strategy', default=None)
+    occupation: typing.Optional[str] = Field(description='persons occupation or role', default=None)
+    favorite_topics: typing.Optional[typing.List[str]] = Field(default=None,description="A list of broad categories of interests the user has")
+    date_of_birth: typing.Optional[datetime.date] = Field(default=None)
+    life_goals:  typing.Optional[typing.List[str]] = Field(default=None,description="A list of medium to long term ambitions the user has")
+    misc_attributes: typing.Optional[dict] = Field(default=None, description="Any concise factual attributes that do not fit neatly into an existing field e.g. the name of a pet. Dont put long form details here but instead add to description. Please supply a dict or something that can be parsed to a dict")
+    
+    @model_validator(mode="before")
+    @classmethod
+    def _types(cls, values):
+        if values.get('life_goals'):
+            values['life_goals'] = utils.coerce_list(values['life_goals'] )
+        if values.get('favorite_topics'):
+            values['favorite_topics'] = utils.coerce_list(values['favorite_topics'] )
+        if values.get('misc_attributes'):
+            values['misc_attributes'] = utils.coerce_json(values['misc_attributes'] )
+        return values

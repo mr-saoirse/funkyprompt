@@ -1,3 +1,10 @@
+"""IRONY - there are no functions only types as organizers of functions
+- if you want to be functional, you can add your functions to a static type that holds and explains them
+- this is better than having a large list of functions but also reduces to single function types 
+
+For this reason, the type registry is the data behind the function manager 
+"""
+
 from funkyprompt.core import AbstractModel
 from funkyprompt.core.agents import (
     CallingContext,
@@ -40,6 +47,8 @@ class FunctionManager:
         Args:
             model (AbstractModel): a model that describes the resources and objectives of an agent
         """
+        if not model:
+            return
         added_functions = []
         for f in model.get_class_and_instance_methods():
             """if the functions need to be qualified by the model we can do that"""

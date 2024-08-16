@@ -67,17 +67,6 @@ class DefaultAgentCore(AbstractModel):
         pass
 
     @classmethod
-    def lookup_entity(self, keys: str | typing.List[str]) -> typing.List[dict]:
-        """Given one or more entity keys, lookup the entity details
-
-        Args:
-            keys (str | typing.List[str]): a list of one or more keys
-
-        Returns: a list of typed entities
-        """
-        pass
-
-    @classmethod
     def funky_prompt_codebase(self, questions: str):
         """ask questions about the codebase aka library
 

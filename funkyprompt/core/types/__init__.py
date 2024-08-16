@@ -2,6 +2,7 @@
 
 import uuid
 import typing
+import types
 
 EMBEDDING_LENGTH_OPEN_AI = 1536
 
@@ -28,19 +29,20 @@ def some_default_for_type(f):
     this is somewhat subjective so we are experimenting with this over time
     this is used for DB use cases primarily so things will be serialized in such a way
     """
+    is_nullable = types.NoneType in typing.get_args(f)
     if match_type(f, uuid.UUID):
         return str(uuid.uuid4())
     if match_type(f, str):
-        return ""
+        return "" if not is_nullable else None
     if match_type(f, typing.List):
-        return []
+        return [] if not is_nullable else None
     if match_type(f, dict):
-        return "{}"
+        return "{}" if not is_nullable else None
     if match_type(f, int):
-        return 0
+        return 0 if not is_nullable else None
     if match_type(f, int):
-        return 0
+        return 0 if not is_nullable else None
     if match_type(f, bool):
-        return False
+        return False if not is_nullable else None
 
-    return ""
+    return "" if not is_nullable else None

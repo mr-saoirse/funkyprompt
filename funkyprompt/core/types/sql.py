@@ -91,7 +91,7 @@ class SqlHelper:
         model_fields = get_type_hints(cls.model)
 
         def dummy_value(field_name):
-            ftype = model_fields[field_name]
+            ftype = model_fields[field_name] 
 
             return some_default_for_type(ftype)
 
@@ -111,6 +111,7 @@ class SqlHelper:
         abstract models can implement db_dump to have an alt serialization path
         """
 
+       
         if isinstance(model_instance, dict):
             data = model_instance
         else:
@@ -119,7 +120,6 @@ class SqlHelper:
             ), f"You are trying to use a model of type {type(model_instance)} in a service of type {type(cls.model)}"
             # this is the one we want to override sometimes
             if hasattr(model_instance, "db_dump"):
-
                 data = model_instance.db_dump()
             elif hasattr(model_instance, "model_dump"):
                 assert (
@@ -128,7 +128,7 @@ class SqlHelper:
                 data = model_instance.model_dump()
             else:
                 data = vars(model_instance)
-
+ 
         """if there is an embedding map we can add the embeddings here
             but its assumed that the database supports those embeddings by convention
         """
@@ -280,6 +280,9 @@ class SqlHelper:
         ]
         ```
         """
+        
+        if restricted_update_fields is not None and not len(restricted_update_fields):
+            raise ValueError('You provided an empty list of restricted field')
 
         """TODO: the return can be efficient * for example pulls back embeddings which is almost never what you want"""
         field_list = cls.field_names

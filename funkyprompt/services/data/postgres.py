@@ -208,11 +208,6 @@ class PostgresService(DataServiceBase):
                
                IT SEEMS LIKE ADDING THE RELATIONSHIPS VIA AN ENTITY CARRIER SUITS US BEST
             """
-            
-            
-                
-
-
             return result
 
     def queue_update_embeddings(self, result: typing.List[dict]):
@@ -224,6 +219,10 @@ class PostgresService(DataServiceBase):
         from funkyprompt.core.utils.embeddings import embed_frame
 
         helper = self.model.sql()
+        
+        if not helper.embedding_fields:
+            """no embeddings, no op"""
+            return
 
         embeddings = embed_frame(
             result,
@@ -256,7 +255,6 @@ class PostgresService(DataServiceBase):
 
     def __getitem__(self, name: str):
         """the key value lookup on the graph is used for the labelled model type and name"""
-
         entity = self.select_one(name)
         """what we will do here is create what is called a wrapped entity"""
         return entity
@@ -291,17 +289,8 @@ class PostgresService(DataServiceBase):
             try:
                 """sketches: we want a generalized way to load entities and register their metadata"""
                 e = cls(d["model"]).select_one(d["name"])
-                #e = e.model_dump()
-                #this is something we should always know
-                #e['entity_type'] = 'project'
-                #this is a test spoof
-                # e['available_functions'] = [
-                #     {
-                #         'name': 'upsert_entity',
-                #         'description': 'call this function to save the project'
-                #     }
-                # ]
-                valid_entities.append(e)
+                if e:
+                    valid_entities.append(e)
             except Exception as ex:
                 logger.warning(f"Failed to load an entity from the graph node - {d}")
          
@@ -453,6 +442,6 @@ class PostgresService(DataServiceBase):
 
 
 """notes
-
+- unit test correct behaviour or no embedding fields - test no attempt to update
 
 """

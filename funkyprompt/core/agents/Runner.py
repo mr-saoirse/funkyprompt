@@ -2,7 +2,7 @@
 The runner can call the LLM in a loop and manage the stack of messages and functions
 Function calling and streaming is handled
 Open telemetry is used to publish metrics which a collector could manage
-If this goes above 250 lines of codes we have failed - many of these lines are detailed comments.
+If this goes above 300 lines of codes we have failed - many of these lines are detailed comments.
 """
 
 from funkyprompt.core import AbstractModel
@@ -79,17 +79,17 @@ class Runner:
             'status': f"Re: the functions {function_names}, now ready for use. please go ahead and invoke."
         }
         
-    def lookup_entity(self, key:str):
+    def lookup_entity(self, name:str):
         """lookup entity by one or more keys
         
         Args:
-            key: one or more keys to use to lookup the entity or entities 
+            name: one or more names to use to lookup the entity or entities 
         """
         
         from funkyprompt.services import entity_store
-
+       
         """todo test different parameter inputs e.g. comma separated"""
-        entities =  entity_store(self.model).get_nodes_by_name(key)
+        entities =  entity_store(self.model).get_nodes_by_name(name)
         
         """register entity functions if needed and wait for the agent to ask to activate them"""
         for e in entities:
@@ -197,12 +197,21 @@ class Runner:
         """log questions to store unless disabled"""
         self.dump(question, response, context)
         
-        """
-        queue entity extraction, consider observer - because we are typed by default, 
-        sometimes we need to format for user while also extracting stuff. This part cannot be delayed but extraction can
-        response = observer(response)
-        """
+        """call the observer - often a no-op"""
+        response = self.observe_structure(response)
 
+        return response
+    
+    def observe_structure(self, response):
+        """
+        Particularly when the response is structured, if the user is not a system user, we may want to call the entity explainer
+        - response = self.model.explain(response, explain_json_only=true)
+        
+        We may want to go the other way to when answers are unstructured to structure (and save) but that is probably already built in to the type behaviour
+        - we describe types as "extractive" in that we can take unstructured data and structure and save it as a core type capability
+        
+        structured <--> unstructured decision making
+        """
         return response
 
     def dump(self, questions: str, response: str, context: CallingContext):

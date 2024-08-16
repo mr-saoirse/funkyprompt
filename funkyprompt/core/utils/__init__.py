@@ -2,6 +2,9 @@ from . import dates, env
 from loguru import logger
 import os
 from glob import glob
+import json
+from ast import literal_eval
+
 
 os.environ["LOGURU_LEVEL"] = "DEBUG"
 
@@ -147,3 +150,27 @@ def index_codebase(include_api_json=True, provider = None):
     logger.info(f'Done - added {len(records)} records')
 
      
+def coerce_list(o):
+    """simple coerce"""
+    if isinstance(o,list):
+        return o
+    if isinstance(o,str):
+        try:
+            return literal_eval(o)
+        except:
+            return o.split(',')
+        
+    raise ValueError(o)
+        
+def coerce_json(o):
+    """simple coerce"""
+    if isinstance(o,dict):
+        return o
+    if isinstance(o,str):
+        try:
+            return json.loads(o)
+        except:
+            return literal_eval(o)
+        
+    raise ValueError(f"{o} must be a string or parseable to json but got {type(o)} that we can not parse")
+            
