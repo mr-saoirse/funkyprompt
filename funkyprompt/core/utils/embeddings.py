@@ -22,8 +22,8 @@ def embed_frame(
     embeddings = {}
 
     def frame_col(name):
-        """spoofs pandas or polars until we decide to add as lib dep"""
-        return [i[name] for i in data]
+        """spoofs pandas or polars until we decide to add as lib dep - when the data are none we embedding a dummy value rather than re-indexing"""
+        return [i[name] or 'NONE' for i in data]
 
     COLUMNS = []
     if len(data):
@@ -40,7 +40,7 @@ def embed_frame(
     for field, mapping in field_mapping.items():
         text = frame_col(field)
         """use the embedding function"""
-        embeddings[mapping] = embed_collection(text)
+        embeddings[mapping] = embed_collection(text) if text is not None else None
 
     """reshape to records"""
     keys = embeddings.keys()

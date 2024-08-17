@@ -796,6 +796,49 @@ files = [
 ]
 
 [[package]]
+name = "kuzu"
+version = "0.6.0"
+description = "Highly scalable, extremely fast, easy-to-use embeddable graph database"
+optional = false
+python-versions = "*"
+files = [
+    {file = "kuzu-0.6.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:92b3ceaa411027a51e17ff2aafdbb9fb3bd08d0e7cfc12328e2d2759eed35923"},
+    {file = "kuzu-0.6.0-cp310-cp310-macosx_11_0_x86_64.whl", hash = "sha256:8137abb5e91d4066763359c057fe3220ca19f003f908f8f122d86df42ae16bd5"},
+    {file = "kuzu-0.6.0-cp310-cp310-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:cf8cce371c4c3474b73cb783034a0173b51aef2cb8377c67acecd1a5414f8db2"},
+    {file = "kuzu-0.6.0-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:5fe69f8c82d0967b8e464fd600e724e261fca1c18a2fbc9ba307231ff53cb763"},
+    {file = "kuzu-0.6.0-cp310-cp310-win_amd64.whl", hash = "sha256:91ce70bd616a9322772746ec5fcdc9922477801a548f7ab57033d02d62d80cea"},
+    {file = "kuzu-0.6.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:e9d5ccc6cdf2140dfa646ef45645863aa7307761b09d79f72aa44a82de606518"},
+    {file = "kuzu-0.6.0-cp311-cp311-macosx_11_0_x86_64.whl", hash = "sha256:ff6e8f9326648f775a77fbd1cd1bfda7c7f23857f92e57208b8263b8bbf35331"},
+    {file = "kuzu-0.6.0-cp311-cp311-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:4e3c0469374faa63a865ff15d69cb8842984cf5967d228a8d9db63bbcea71aef"},
+    {file = "kuzu-0.6.0-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:2901b2c7ad01496b438732df6da8cc10fd57761391c380c835cb081bfdfe8776"},
+    {file = "kuzu-0.6.0-cp311-cp311-win_amd64.whl", hash = "sha256:d6208701eab2fda4dbcb6e27886c957a10119b3bdc467b8a31bae9f341e71bf1"},
+    {file = "kuzu-0.6.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:edff0ee1bb1713fbe42f15ae487b0e84de96cd65b6aa7b6558e388ec0987b9bc"},
+    {file = "kuzu-0.6.0-cp312-cp312-macosx_11_0_x86_64.whl", hash = "sha256:b0bd674c4ba017095287637929d516fadf678e1000bf31cfea4672c9061dcf8b"},
+    {file = "kuzu-0.6.0-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:0095ddfd6484c6e57ff7f31dafa18ef3195d8352fa6a9802fee48ec22b538f2b"},
+    {file = "kuzu-0.6.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:6b63808292c83a5ece0ad3d52a93ad97ef6114213ea353be64740793d432ba16"},
+    {file = "kuzu-0.6.0-cp312-cp312-win_amd64.whl", hash = "sha256:796c03f615345a23af2bdeb5bae1fbc5841b67b3887d1ffa3d5d92ca2ba5d20d"},
+    {file = "kuzu-0.6.0-cp313-cp313-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:9d85dbb521573bc9303405d8373abe8ce4bf6d7fe25255cd080e6ffc0138d27b"},
+    {file = "kuzu-0.6.0-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:065f93cdcef501dd519a40eb48b916b2bb3f6f9bce86f0e91c77b9943278da16"},
+    {file = "kuzu-0.6.0-cp313-cp313t-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:1bd7c8dc7f4fa3e322343636fc64cea5c2280bd5e4b6d93a0eec21c11f41cf63"},
+    {file = "kuzu-0.6.0-cp313-cp313t-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:7e4bcff9123efc938f7f4bb73767454c701556cc9b91b8dc36c1e8c99fe3ec8f"},
+    {file = "kuzu-0.6.0-cp37-cp37m-macosx_11_0_x86_64.whl", hash = "sha256:adebd3a01210410adef4ac46c21d1a453a2ee70c6ef0b57da89c6bb139700b89"},
+    {file = "kuzu-0.6.0-cp37-cp37m-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:dfa635fd6469cf9a9435da2b25ab39f6d39d6bd1eac6e9f93b7ee85c2c6260d3"},
+    {file = "kuzu-0.6.0-cp37-cp37m-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:36d8f45b5b88bba516be81ee630a0d56b229d59360f0f2e73ca1e79ea9058b44"},
+    {file = "kuzu-0.6.0-cp37-cp37m-win_amd64.whl", hash = "sha256:92a26870fa78563dad16e7cfdc6cb136aa21f9ff808296ff3851295ad3e14529"},
+    {file = "kuzu-0.6.0-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:986e9856f5146fcb1063faf2812908fcfd99f17d13cfcb5ff65a96103547e4f5"},
+    {file = "kuzu-0.6.0-cp38-cp38-macosx_11_0_x86_64.whl", hash = "sha256:db0bcebf7adf6c1f38dee1599dc9b38b23cab8a2b97ad1149d2b5cfcf0fa25b8"},
+    {file = "kuzu-0.6.0-cp38-cp38-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:d963b9189148d7c6480879b49544d7adb51554a18b3ab9884f07a8a3b9c3ac4c"},
+    {file = "kuzu-0.6.0-cp38-cp38-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:ad816065e2409fdb5510dfffd75755438e92242e3834271f15c933598834f876"},
+    {file = "kuzu-0.6.0-cp38-cp38-win_amd64.whl", hash = "sha256:30350074935e4950e2e170293589fc9a2a3a9b2e24ddf50ec137f60cd6ac6e7e"},
+    {file = "kuzu-0.6.0-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:e25c1e5761923cc7e6c80fab6aa1930cc8fe05e73f7c9846ccfd1504b1160c5f"},
+    {file = "kuzu-0.6.0-cp39-cp39-macosx_11_0_x86_64.whl", hash = "sha256:a3e5671b772a9b2ad669acd5af5be1fccc57998306958b6ef08dd98cc05585f2"},
+    {file = "kuzu-0.6.0-cp39-cp39-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:2ee38265966d3931befd9ef313f822a740408fe531e45e431f2f5642c0ce8874"},
+    {file = "kuzu-0.6.0-cp39-cp39-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:4955d62cbcacf57e72b7ba5db81e3943b7bd4ef66223f60963c8d4e1ba4eceb4"},
+    {file = "kuzu-0.6.0-cp39-cp39-win_amd64.whl", hash = "sha256:2e65c45757880b722a10770a1b24b05b1c2248dd66c2ec910541ceb3f67c6428"},
+    {file = "kuzu-0.6.0.tar.gz", hash = "sha256:f188d95255f7038e7c36e7ae6f4698be591b3b2a636bf4b89deb11eec90706f4"},
+]
+
+[[package]]
 name = "loguru"
 version = "0.7.2"
 description = "Python logging made (stupidly) simple"
@@ -1617,4 +1660,4 @@ dev = ["black (>=19.3b0)", "pytest (>=4.6.2)"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "a106b5ad1fc08a8634f6b5040e40ce847cc6f4a248eb310c06ec5ee92d45d506"
+content-hash = "4826e02f7d06cd5538948b5ae7b70a98bbec551b0aa4856cb2d5d138dc5f5010"

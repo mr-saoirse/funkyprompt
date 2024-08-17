@@ -1,6 +1,6 @@
 from funkyprompt.core.AbstractModel import AbstractModel, AbstractEntity, Field, typing, AbstractContentModel, AbstractEdge
 from funkyprompt.core.ConversationModel import ConversationModel
-from funkyprompt.core.fields.annotations import OpenAIEmbeddingField
+from funkyprompt.core.fields.annotations import OpenAIEmbeddingField, RelationshipField
 
 
 def load_entities() -> typing.List[AbstractEntity]:

@@ -11,6 +11,19 @@ import typing
 [A] Provide some common shorthands for field annotations used with pydantic objects
 """
 
+class AnnotationHelper:
+    def __init__(self, model:BaseModel):
+        type_hints = model.model_fields
+        self.extras = {k : v.json_schema_extra for k,v in type_hints.items() if hasattr(v, 'json_schema_extra')}
+        
+    @property
+    def typed_edges(self)->dict:
+        """provide the field that contains edges and their type"""
+        edges = {}
+        for k,v in self.extras.items():
+            if v and v.get('is_edge'):
+               edges[k] = v.get('edge_type') 
+        return edges
 
 class SqlTypeFields(BaseModel):
     """things like varchar lengths"""
@@ -39,6 +52,11 @@ def CLIPEmbeddingField():
     """it is common to have text content or image content that can be embedded - clip will use system defaults"""
     return partial(Field, embedding_provider="clip")
 
+def RelationshipField(edge_type=None):
+    """edge types tell us that we want to export edges relating source node to target nodes"""
+    return partial(Field, is_edge=True, edge_type=edge_type)
+
+
 
 """
 By partially invoking we recover the doc string for the Fields that can be used as normal
@@ -46,7 +64,7 @@ By partially invoking we recover the doc string for the Fields that can be used 
 KeyField = KeyField()
 OpenAIEmbeddingField = OpenAIEmbeddingField()
 CLIPEmbeddingField = CLIPEmbeddingField()
-
+RelationshipField = RelationshipField()
 
 class Example(BaseModel):
     """

@@ -16,20 +16,20 @@ from funkyprompt.services.data import DataServiceBase
 from funkyprompt.core.utils.env import POSTGRES_CONNECTION_STRING, AGE_GRAPH
 from funkyprompt.core.utils import logger
 from funkyprompt.core.types.sql import VectorSearchOperator
-
 from funkyprompt.entities import resolve as resolve_entity
 
 
-def cypher_with_age_wrapper(q: str):
-    """wrapper a cypher query"""
+def cypher_with_age_wrapper(q: str, returns=None):
+    """wrapper a cypher query - specify the return variables expected"""
+    returns = returns or ['n']
+    returns = f",".join([f'{n} agtype' for n in returns])
     return (
         f""" LOAD 'age';
         SET search_path = ag_catalog, "$user", public;
-
         SELECT * 
         FROM cypher('{AGE_GRAPH}', $$
             {q}
-        $$) as (n agtype);"""
+        $$) as ({returns});"""
         if q
         else None
     )
@@ -150,6 +150,17 @@ class PostgresService(DataServiceBase):
         finally:
             cls.conn.close
 
+    def _execute_cypher(
+        cls,
+        query: str,
+    ):
+        """wrapper to run cypher queries in AGE (needs a basic wrapper)"""
+        try:
+            return cls.execute(cypher_with_age_wrapper(query))
+        except:
+            logger.warning(f"Failing to execute cypher query")
+            raise
+    
     def execute_upsert(cls, query: str, data: tuple = None, page_size: int = 100):
         """run an upsert sql query"""
         return cls.execute(query, data=data, page_size=page_size, as_upsert=True)
@@ -162,53 +173,6 @@ class PostgresService(DataServiceBase):
         """
         return cls(model)._create_model()
 
-    def update_records(self, records: typing.List[AbstractModel]):
-        """records are updated using typed object relational mapping.
-        the embedding update is queued
-        """
-
-        # TODO: there is a very confusing behaviour when the update records works on dictionaries and not objects
-
-        if records and not isinstance(records, list):
-            records = [records]
-        helper = self.model.sql()
-        data = [
-            tuple(helper.serialize_for_db(r).values()) for i, r in enumerate(records)
-        ]
-
-        if records:
-            query = helper.upsert_query(batch_size=len(records))
-            try:
-                result = self.execute_upsert(query=query, data=data)
-            except:
-                logger.info(f"Failing to run {query}")
-                raise
-
-            """for now do inline but this could be an async thing to not block"""
-            self.queue_update_embeddings(result)
-
-            """add the node for certain types that have unique names and are entity like
-               we could in future do this as a transaction in the upserts or as a trigger 
-            """
-            if issubclass(self.model, AbstractEntity):
-            
-                query = cypher_with_age_wrapper(
-                    self.model.cypher().upsert_node_query(records)
-                )
-                logger.trace(query)
-                _ = self.execute(query)
-                # self.queue_add_nodes(records) # or do we find a way to insert them in the insert block which would be nice
-                # it seems like just adding the node as a reference with all the data is the way to do since the use case for entity lookup is one item
-                # and therefore we want a fast insert and on demand we can do a two-pass resolve entities and query them
-                # we could also have a slow background process that indexes the attributes we care about on the node
-                
-            """export relationships - assume the records metadata tells us what rels there are
-               - then for each record, dump the relationships
-               - do we want to allow nodes to carry relationships - lets see
-               
-               IT SEEMS LIKE ADDING THE RELATIONSHIPS VIA AN ENTITY CARRIER SUITS US BEST
-            """
-            return result
 
     def queue_update_embeddings(self, result: typing.List[dict]):
         """embeddings in general should be processed async
@@ -260,7 +224,7 @@ class PostgresService(DataServiceBase):
         return entity
 
     @classmethod
-    def get_nodes_by_name(cls, name) -> typing.List[AbstractEntity]:
+    def get_nodes_by_name(cls, name: str) -> typing.List[AbstractEntity]:
         """the node mode is only useful when we are invariant to types,
         because we can resolve nodes even when we dont know their type.
         Suppose an LLM knows that something _is_ an entity but does not know what it is
@@ -296,11 +260,15 @@ class PostgresService(DataServiceBase):
          
         return valid_entities
 
-    def query_graph(self, query: str):
-        """query the graph with a valid cypher query"""
+    def query_graph(self, query: str, returns: typing.List[str]=None):
+        """query the graph with a valid cypher query
+        Args:
+            query: a cypher query
+            returns: a list of return variables e.g. n,e,r - defaults to n i.e. a single result column
+        """
         ###
         """AGE/postgres runs cypher with some boilerplate"""
-        query = cypher_with_age_wrapper(query)
+        query = cypher_with_age_wrapper(query,returns=returns)
         return self.execute(query)
 
     def ask_graph(self, question: str):
@@ -439,6 +407,51 @@ class PostgresService(DataServiceBase):
              """
 
         return self.execute(query)
+    
+    
+    def update_records(self, records: typing.List[AbstractModel]):
+        """records are updated using typed object relational mapping.
+        the embedding update is queued
+        """
+
+        # TODO: there is a very confusing behaviour when the update records works on dictionaries and not objects
+
+        if records and not isinstance(records, list):
+            records = [records]
+        helper = self.model.sql()
+        data = [
+            tuple(helper.serialize_for_db(r).values()) for i, r in enumerate(records)
+        ]
+
+        if records:
+            query = helper.upsert_query(batch_size=len(records))
+            try:
+                result = self.execute_upsert(query=query, data=data)
+            except:
+                logger.info(f"Failing to run {query}")
+                raise
+
+            """for now do inline but this could be an async thing to not block"""
+            self.queue_update_embeddings(result)
+
+            """ <<GRAPH>>
+                add the node and edges for certain types that have unique names and are entity like
+                we could do this as a transaction inside the main upsert or we can also do it on background process
+                if we had different providers and not just postgres we might make different choices
+            """
+            if issubclass(self.model, AbstractEntity):
+                """save the primary node ref - this doubles as a key-value lookup"""
+                query = self.model.cypher().upsert_nodes_statement(records) 
+                logger.trace(query)
+                _ = self._execute_cypher(query)
+                """export all edges pointing away from each entity using the metadata"""
+                nodes_query, edges_query = self.model.cypher().upsert_relationships_queries(records)
+                logger.debug(nodes_query)
+                logger.debug(edges_query)
+                _ = self._execute_cypher(nodes_query)
+                _ = self._execute_cypher(edges_query)
+                
+            return result
 
 
 """notes

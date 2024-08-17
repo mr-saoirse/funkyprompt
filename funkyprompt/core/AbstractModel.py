@@ -5,6 +5,7 @@ from funkyprompt.core.types import inspection
 from funkyprompt.core.types.sql import SqlHelper
 from funkyprompt.core.types.cypher import CypherHelper
 from funkyprompt.core.utils.ids import funky_id
+from funkyprompt.core.utils.dates import utc_now
 import datetime
 from pydantic._internal._model_construction import ModelMetaclass
 import json
@@ -23,6 +24,67 @@ def can_parse_json(d):
         return True
     except:
         return False
+    
+class Node(BaseModel):
+    """a simple node"""
+    name: str
+    node_type: str = Field(default='generic')
+    attributes: typing.Optional[str|dict] = None
+    
+    @property
+    def key(self):
+        return f"{self.node_type}_{self.name}"
+    
+    @model_validator(mode="before")
+    @classmethod
+    def _types(cls, values):
+        """formatting for cypher and often we have qualified node names and this makes it easier"""
+        values['node_type'] = values.get('node_type', 'generic').replace('.','_')
+        att = values.get('attributes')
+        if isinstance(att,dict):
+            values['attributes'] = Node.format_attributes(att)
+        return values
+
+    @staticmethod
+    def format_attributes(att):
+        def f(s):
+            return s if not isinstance(s,str) else f'"{s}"'
+        return " ".join([f"k:{f(v)}" for k,v in att.items()]) if att else None
+    
+class Edge(BaseModel):
+    """a simple edge"""
+    source_node: Node
+    target_node: Node
+    attributes: typing.Optional[str|dict] = Field(default=None)
+    description: str
+    type: typing.Optional[str] = Field(default='edge')
+    
+    @property
+    def edge_name(self):
+        """when edges are created they are typed - we can maintain an one edge of type between two unique nodes but we could qualify"""
+        return f"{self.source_node.key}{self.target_node.key}"
+
+    @staticmethod
+    def format_attributes_for_assignment(att, alias='e'):
+        def f(s):
+            return s if not isinstance(s,str) else f'"{s}"'
+        return " ".join([f"{alias}.{k}={f(v)}" for k,v in att.items()]) if att else None
+    
+    def make_edge_upsert_query_fragment(self: "Edge", index:int=0):
+        """Conventional generation of edges uses a form of cypher to format,
+        the node name is assumed to be the key in funkyprompt,
+        attributes are upserted on the name of the edge
+        """
+
+        """TODO: it may ne we want to understand edge uniqueness but for now we create liberally 
+        - we assume the edge name can be generated uniquely but attributes can be updated
+        """
+        attribute_assignments = Edge.format_attributes_for_assignment(self.attributes, alias=f"e{index}") or f"e{index}.description='{self.description}'"
+        attribute_assignments += f",e{index}.timestamp='{utc_now().isoformat()}'"
+        A = f"""a{index}:{self.source_node.node_type} {{name: '{self.source_node.name}' }}"""
+        B = f"""b{index}:{self.target_node.node_type} {{name: '{self.target_node.name}' }}"""
+        return f"""MERGE ({A})-[e{index}:{self.type} {{name: '{self.edge_name}' }}]->({B}) SET {attribute_assignments}"""
+        
 class AbstractModel(BaseModel):
     """"""
     
@@ -192,11 +254,12 @@ class AbstractModel(BaseModel):
 
         this is experimental and may not be a perfect abstraction
         """
+        
+        from funkyprompt.core.types.pydantic import get_pydantic_properties_string
+
         injected_data = ""
         if getattr(cls, "_get_prompting_data", None) is not None:
             injected_data = cls._get_prompting_data()
-
-        from funkyprompt.core.types.pydantic import get_pydantic_properties_string
 
         return f"""## About the model: {cls.get_model_name().upper()}
     
@@ -355,13 +418,24 @@ class AbstractEntity(AbstractModel):
 
     name: str = Field(description="The name is unique for the entity", is_key=True)
 
+    @classmethod
+    def _lookup_entity(cls, name:str, include_relations: bool=False):
+        """convenience to lookup the type by name (cypher query on the node)"""
+        from funkyprompt.services import entity_store
+        ntype = f"{cls.get_model_namespace()}_{cls.get_model_name()}"
+        query = f"""MATCH (v:{ntype} {{name:'{name}'}}) RETURN v"""
+        if include_relations:
+            query = f"""MATCH (v:{ntype} {{name:'{name}'}})-[r]-(o) RETURN v,r,o"""
+            return entity_store(cls).query_graph(query,returns=['n', 'r', 'o'])
+        return entity_store(cls).query_graph(query)
+    
     @model_validator(mode="before")
     @classmethod
     def _id(cls, values):
         """"""
         if not values.get("id"):
             """very important to observe current convention of 
-            id generated from caseless tring"""
+            id generated from caseless string"""
             values["id"] = funky_id(values["name"].lower())
         return values
 

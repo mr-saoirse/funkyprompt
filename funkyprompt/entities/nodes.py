@@ -1,4 +1,4 @@
-from funkyprompt.core import AbstractEntity, typing, Field, OpenAIEmbeddingField
+from funkyprompt.core import AbstractEntity, typing, Field, OpenAIEmbeddingField,RelationshipField
 import datetime
 from . import GenericEntityTypes
 from pydantic import model_validator
@@ -26,14 +26,12 @@ class Project(AbstractEntity):
     target_completion: typing.Optional[datetime.datetime] = Field(
         default=None, description="An optional target completion date for the project"
     )
-    labels: typing.Optional[typing.List[str] | str] = Field(
+    labels: typing.Optional[typing.List[str] | str] = RelationshipField(
         default_factory=list,
         description="Optional category labels - should link to topic entities. When you are using labels you should always upsert or add labels to whatever is there already and never replace unless asked",
         entity_name=GenericEntityTypes.TOPIC,
     )
     
-
-
     @model_validator(mode="before")
     @classmethod
     def _types(cls, values):
@@ -189,10 +187,7 @@ class Resource(AbstractEntity):
     uri: typing.Optional[str] = Field(description='a unique resource identifier if know')
     image_uri: typing.Optional[str] = Field(description='a representative image for the resource if known')
     category: str = Field(default=None,description="Resources can include IDEA|PERSON|WEBSITE|DATA|SOFTWARE and other categories")
-    labels: typing.Optional[typing.List[str]] = Field(description='general labels to attach to the entity beyond category',default=None)
-    
-    
-
+    labels: typing.Optional[typing.List[str]] = RelationshipField(description='general labels to attach to the entity beyond category',default=None)
     
 class TaskIdeaSummary(AbstractEntity):
     """this is a higher level example for testing the ideas
@@ -318,14 +313,16 @@ class PersonPreferences(AbstractEntity):
             """
         )
 
-    name: typing.Optional[str] = Field(description='users name',default=None)
+    name: typing.Optional[str] = Field(description="users name - good practice to always title case and remove any possession or plurals. For example toms or tom's should be mapped to Tom", default=None)
     email: typing.Optional[str] = Field(description='users email',default=None)
-    description: typing.Optional[str] = Field(description='A detailed description of the person, their social network, interests etc. it is very important to retain all information that you gather and dont overwrite important details. Use an intelligence merge strategy', default=None)
+    description: typing.Optional[str] = OpenAIEmbeddingField(description='A detailed description of the person, their social network, interests etc. it is very important to retain all information that you gather and dont overwrite important details. Use an intelligence merge strategy', default=None)
     occupation: typing.Optional[str] = Field(description='persons occupation or role', default=None)
     favorite_topics: typing.Optional[typing.List[str]] = Field(default=None,description="A list of broad categories of interests the user has")
     date_of_birth: typing.Optional[datetime.date] = Field(default=None)
     life_goals:  typing.Optional[typing.List[str]] = Field(default=None,description="A list of medium to long term ambitions the user has")
     misc_attributes: typing.Optional[dict] = Field(default=None, description="Any concise factual attributes that do not fit neatly into an existing field e.g. the name of a pet. Dont put long form details here but instead add to description. Please supply a dict or something that can be parsed to a dict")
+    related_entities: typing.Optional[dict] = RelationshipField(default=None, 
+                                                                description="Any entities (by name) that are referenced can be replicated here with a short description of how they relate")
     
     @model_validator(mode="before")
     @classmethod
@@ -336,4 +333,6 @@ class PersonPreferences(AbstractEntity):
             values['favorite_topics'] = utils.coerce_list(values['favorite_topics'] )
         if values.get('misc_attributes'):
             values['misc_attributes'] = utils.coerce_json(values['misc_attributes'] )
+        if values.get('related_entities'):
+            values['related_entities'] = utils.coerce_json(values['related_entities'] )
         return values
