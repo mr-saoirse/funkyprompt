@@ -79,7 +79,7 @@ class Edge(BaseModel):
         """TODO: it may ne we want to understand edge uniqueness but for now we create liberally 
         - we assume the edge name can be generated uniquely but attributes can be updated
         """
-        attribute_assignments = Edge.format_attributes_for_assignment(self.attributes, alias=f"e{index}") or f"e{index}.description='{self.description}'"
+        attribute_assignments = Edge.format_attributes_for_assignment(self.attributes, alias=f"e{index}") or f"""e{index}.description="{self.description.replace('"', '/"')}" """
         attribute_assignments += f",e{index}.timestamp='{utc_now().isoformat()}'"
         A = f"""a{index}:{self.source_node.node_type} {{name: '{self.source_node.name}' }}"""
         B = f"""b{index}:{self.target_node.node_type} {{name: '{self.target_node.name}' }}"""
@@ -324,7 +324,7 @@ _the child types will appear first followed by the parent model to use_
         return response 
     
     @classmethod
-    def _describe_model(cls):
+    def _describe_model(cls, qualify_function_name: bool = False):
         """
         This model takes a particular format for allow an agent to know what it can do with the model
         it could convert to get-prompt but we will see
@@ -333,9 +333,13 @@ _the child types will appear first followed by the parent model to use_
         """now prepare the metadata starting with functions"""
         functions = []
         for f in cls.get_class_and_instance_methods():
+            name = f.__name__
+            if qualify_function_name:
+                name = f"{cls.get_model_namespace()}_{cls.get_model_name()}_{f.__name__}"
             functions.append({
-                'function_name': f"{cls.get_model_namespace()}_{cls.get_model_name()}_{f.__name__}" ,
-                'description' : f.__doc__
+                'function_name': name ,
+                'description' : f.__doc__,
+                'entity_name': cls.get_model_fullname()
             })
         
         """add the models into a map, unique on the entity type"""

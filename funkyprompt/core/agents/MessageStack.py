@@ -75,8 +75,13 @@ class MessageStack(BaseModel):
             """these are the default initial messages in the stack"""
             model = values.get("model")
             prompt = "Answer the users questions using 1. provided data, 2. any provided functions or 3. world knowledge depending on the context. Always check that you can use functions that you have. Do not use a search function if another function or existing data can be used in place. "
-            if hasattr(model, "get_model_description"):
-                prompt += (model.get_model_description() or 'answer the users question')
+            
+            #model description is more lightweight - there may be instances when its enough
+            #e.g. the entity type and functions can be determine at runtime via lookups (TODO: optimize this)
+            if hasattr(model, "get_model_as_prompt"):
+                prompt += (model.get_model_as_prompt() or 'answer the users question\n')
+            elif hasattr(model, "get_model_description"):
+                prompt += (model.get_model_description() or 'answer the users question\n')
             """update messages from context, model and question"""
 
             messages.append(SystemMessage(content=prompt))

@@ -151,11 +151,13 @@ class Task(Project):
             date (str): the new date to complete the task
         """
         from funkyprompt.services import entity_store
-
+        
         if task_names and not isinstance(task_names, list):
             task_names = [task_names]
 
-        q = f"""UPDATE {cls.sql().table_name} set target_completion=% WHERE name = ANY(%)"""
+        """could set these to upserts for cases where actually its not there"""
+        
+        q = f"""UPDATE {cls.sql().table_name} set target_completion=%s WHERE name = ANY(%s)"""
 
         return entity_store(cls).execute(q, (date, task_names))
 

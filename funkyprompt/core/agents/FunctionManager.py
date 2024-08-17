@@ -74,7 +74,7 @@ class FunctionManager:
         return f
 
     # may add tenacity retries for formatting
-    def plan(self, question: str, context: CallingContext = None):
+    def plan(self, question: str, context: CallingContext = None, strict: bool = True):
         """Given a question, use the known functions to construct a function calling plan (DAG)
 
         Args:
@@ -93,16 +93,16 @@ class FunctionManager:
         # example not just of response model but add functions/prompts with the model
         """we can structure the messages from the question and typed model"""
         messages = MessageStack(
-            question, model=Plan, language_model_provider=context.model
+            question=question, model=Plan, language_model_provider=context.model if context else None
         )
 
-        response: Plan = Plan.model_validate_json(
-            lm_client(messages=messages, functions=functions, context=context)
-        )
+        response = lm_client(messages=messages, functions=functions, context=context)
+        if strict:
+            response: Plan = Plan.model_validate_json(response)
 
         return response
 
-    def add_functions_by_name(self, function_names: str | typing.List[str]):
+    def add_functions_by_name(self, function_names: dict):
         """functions by named can be added to the runtime
         When plans or searches or run, the agent must ask to activate the functions.
 
@@ -111,9 +111,25 @@ class FunctionManager:
         2. adding the function to the runtime so it can be called by the Runner
 
         Args:
-            function_names (str | typing.List[str]): provide one or functions as a list
+            function_names (dict): provide a map of the function and the entity it belongs to
         """
-        pass
+        from funkyprompt.entities import load_entities
+        SEP = '_'
+        """this will become smarter and faster"""
+        entities = load_entities()
+        entities = {e.get_model_fullname():e for e in entities}
+
+ 
+        for f, entity_name in function_names.items():
+            """remove any qualification"""
+            f = f.replace(f"{entity_name}_", '')
+            entity = entities.get(entity_name)
+            if entity is None:
+                raise Exception(f"The entity {entity_name} does not exist or cannot be loaded from {entities}")
+            self.add_function(getattr(entity,f))
+            
+        """only return the ones we add successfully"""
+        return function_names
 
     def reset_functions(self):
         """hard reset on what we know about"""

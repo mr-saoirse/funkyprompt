@@ -36,7 +36,12 @@ def get_defining_class(member,cls):
     return None
     
 def is_strict_subclass(subclass, superclass):
-    return issubclass(subclass, superclass) and subclass is not superclass
+    try:
+        if not subclass:
+            return False
+        return issubclass(subclass, superclass) and subclass is not superclass
+    except:
+        raise ValueError(f"failed to check {subclass}, {superclass} as a strict subclass relationship")
 
 def get_class_and_instance_methods(cls, inheriting_from: type=None):
     """inspect the methods on the type for methods

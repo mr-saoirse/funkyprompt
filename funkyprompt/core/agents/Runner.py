@@ -61,22 +61,28 @@ class Runner:
         self._function_manager.add_function(self.activate_functions_by_name)
         """more complex things will happen from here when we traverse what comes back"""
     
-    def activate_functions_by_name(self, function_names: str|typing.List[str]):
+    def activate_functions_by_name(self, function_name_to_entity_mapping: dict):
         """
         If you encounter a full name of a function that you don't have details for, you can activate it here.
         Once you activate it, it will be ready for use. Supply one or more function names to activate them.
-
+        
         Args:
-            function_names: one or more function names
+            function_name_to_entity_mapping (dict): provide a map between the entity name and the entity that the function belongs to
         """
         
         """NO-OP for now; the function manager can activate the functions - for now we are handling these cases when entities are loaded below.
            So this is just a placeholder if we want to have a more generalized registry and the idea of lazy activation to reduce cognitive load 
            - also, this function is a good way IF the agent thinks it has not got access to the function, give it something to do and then nudge it with the message below.
         """
+        fm = function_name_to_entity_mapping
+        if not isinstance(fm,dict):
+            raise Exception("When calling this function, in `function_names` you must provide a mapping between the function and the entity it belongs e.g. {'some_function': 'namespace.entity'}")
         
+        utils.logger.debug(f'activating function {fm}')
+        fm = self._function_manager.add_functions_by_name(fm)
+            
         return {
-            'status': f"Re: the functions {function_names}, now ready for use. please go ahead and invoke."
+            'status': f"Re: the functions {list(fm.values())}, now ready for use. please go ahead and invoke."
         }
         
     def lookup_entity(self, name:str):
@@ -108,8 +114,10 @@ class Runner:
         utils.logger.debug(f"help/{questions=}")
 
         try:
-            plan = self._function_manager.plan(questions)
+            """for now strict planning is off"""
+            plan = self._function_manager.plan(questions,strict=False)
         except:
+            utils.logger.warning(f"failing to plan - {traceback.format_exc()}")
             return {"message": "planning pending - i suggest you use world knowledge"}
 
         """describe the plan context e.g. its a plan but you need to request the functions and do the thing -> update message stack"""

@@ -61,6 +61,9 @@ class PlanFunctions(AbstractModel):
     name: str = Field(
         description="fully qualified function name e.g. <namespace>.<name>"
     )
+    bound_entity_name:str = Field(
+        description="functions are discovered on entities and the entity name is required"
+    )
     description: str = Field(
         description="a description of the function preferably with the current context taken into account e.g. provide good example parameters"
     )
@@ -113,6 +116,8 @@ class Plan(AbstractEntity):
         l = create_lookup(values)
         values = expand_refs(values, l)
         return values
+    
+
 
     @classmethod
     def _get_prompting_data(cls):
@@ -122,16 +127,21 @@ class Plan(AbstractEntity):
 
         """
 
-        from funkyprompt.core import load_entities
+        def describe_available_entity_functions()->dict:
+            from funkyprompt.entities import load_entities
+            
+            entities = load_entities()
+            models = {}
+            for e in entities:
+                models[e.get_model_fullname()] = e._describe_model()
+            
+            return models
 
         return f"""
-        ## Available entity functions
-        
-        ```json
-        {
-            json.dumps(load_entities(),default=str)
-        }
-        ```
+## Available entity functions
+```json
+{json.dumps(describe_available_entity_functions(),default=str)}
+```
     """
 
     def search_functions(cls, questions: str | typing.List[str]) -> typing.List[dict]:

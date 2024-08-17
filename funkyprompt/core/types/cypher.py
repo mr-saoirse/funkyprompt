@@ -1,3 +1,18 @@
+"""implement some basic batch merge statements - they generally take the conventional forms
+
+MERGE (a:Type{name:x})-[e:Type({name:y}]-(b:Type{name:y})], SET a.property = 'value'
+where each variable a,e,b is indexed in the batch e.g. a0, a1, a2...
+
+funkyprompt uses a very simple type of graph since its hybrid
+we are simply registering keys and relationships between them 
+so we dont write a lot of properties in the graph except for system props
+
+The type system works with the AbstractEntity to qualify node and edge types
+
+This helps agents find things it would otherwise lose
+
+"""
+
 import typing
 
 class CypherHelper:
@@ -15,14 +30,16 @@ class CypherHelper:
         """"""
         return None
 
-    def get_graph_model_attribute_setter(self, node, alias='n'):
+    def get_graph_model_attribute_setter(self, node, has_full_entity:bool=False, alias='n'):
         """the default node behviour is to just keep the name but we can 'index' other attributes
         this can either be done upfront or later on some trigger or job
         """
         #this is a marker that shows we have associated a full entity with the node
-        attributes = f"{alias}.entity = 1"
+        attributes = f"{alias}.entity = 1" if has_full_entity else None
         
-        return f"""SET {attributes}"""
+        if attributes:
+            return f"""SET {attributes}"""
+        return ''
 
     # def upsert_path_query(self, node):https://age.apache.org/age-manual/master/clauses/create.html
 
@@ -39,7 +56,7 @@ class CypherHelper:
         """
         return None
     
-    def upsert_nodes_statement(self, nodes, label:str=None):
+    def upsert_nodes_statement(self, nodes, label:str=None, has_full_entity:bool=False):
         """
         create a node upsert query - any attributes can be upserted
         but labeled nodes are supposed to be unique by name
@@ -47,6 +64,7 @@ class CypherHelper:
         Args:
             nodes: a list of entities 
             label: its assumed the label is based on the model but can be anything
+            has_full_entity: a tracker to see if we are also adding the entity or just making a relationship to a node 
         """
 
         if not isinstance(nodes, list):
@@ -65,7 +83,7 @@ class CypherHelper:
             """we may set some attributes like descriptions and stuff"""
             cypher_queries.append(
                 f"""MERGE (n{i}:{applied_label} {{name: '{n.name}'}})
-                { self.get_graph_model_attribute_setter(n, alias=f"n{i}")  }
+                { self.get_graph_model_attribute_setter(n, alias=f"n{i}", has_full_entity=has_full_entity)  }
                """
             )
 

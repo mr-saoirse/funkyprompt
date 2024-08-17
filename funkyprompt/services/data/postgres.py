@@ -37,7 +37,11 @@ def cypher_with_age_wrapper(q: str, returns=None):
 
 def _parse_vertex_result(x):
     x = json.loads(x["n"].split("::")[0])
-    model_namespace, model_name = x["label"].split("_", 1)
+    parts = x["label"].split("_", 1)
+    if len(parts) == 2:
+        model_namespace, model_name = parts
+    else:
+        model_namespace, model_name = 'core', parts[0]
     name = x["properties"].get("name")
     d = {
         "entity_model_name": model_name,
@@ -257,7 +261,7 @@ class PostgresService(DataServiceBase):
                     valid_entities.append(e)
             except Exception as ex:
                 logger.warning(f"Failed to load an entity from the graph node - {d}")
-         
+              
         return valid_entities
 
     def query_graph(self, query: str, returns: typing.List[str]=None):
@@ -330,14 +334,14 @@ class PostgresService(DataServiceBase):
                 return data
 
         """fall back to a vector search - a temporal predicate will be needed here"""
+        count_vector_result = 0
         for q in classification.decomposed_questions:
             for r in self.vector_search(q):
                 results[r["id"]] = r
-            return list(results.values())
-
-        """it may be when we try multi async routes we can dedupe and rerank here"""
-
-        return results
+                count_vector_result+= 1
+        #telemetry
+        logger.debug(f"fetched {count_vector_result} using vector search")
+        return list(results.values())
 
     def vector_search(
         self,
@@ -441,13 +445,13 @@ class PostgresService(DataServiceBase):
             """
             if issubclass(self.model, AbstractEntity):
                 """save the primary node ref - this doubles as a key-value lookup"""
-                query = self.model.cypher().upsert_nodes_statement(records) 
+                query = self.model.cypher().upsert_nodes_statement(records, has_full_entity=True) 
                 logger.trace(query)
                 _ = self._execute_cypher(query)
                 """export all edges pointing away from each entity using the metadata"""
                 nodes_query, edges_query = self.model.cypher().upsert_relationships_queries(records)
-                logger.debug(nodes_query)
-                logger.debug(edges_query)
+                logger.trace(nodes_query)
+                logger.trace(edges_query)
                 _ = self._execute_cypher(nodes_query)
                 _ = self._execute_cypher(edges_query)
                 
