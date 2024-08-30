@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "funkyprompt"
-version = "0.5.1"
+version = "0.5.20"
 description = "a library for speaking with large langauge models using object orientated generation"
 authors = ["mr-saoirse <amartey@gmail.com>"]
 license = "MIT"
@@ -19,6 +19,8 @@ loguru = "^0.7.2"
 openai = "^1.37.1"
 beautifulsoup4 = "^4.12.3"
 kuzu = "^0.6.0"
+datamodel-code-generator = "^0.25.9"
+html2text = "^2024.2.26"
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.4.2"

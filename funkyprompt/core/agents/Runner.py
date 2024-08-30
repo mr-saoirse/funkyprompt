@@ -236,14 +236,18 @@ class Runner:
             """dumpy state"""
             response = response.model_dump_json()
 
-        entity_store(ConversationModel).update_records(
-            ConversationModel(
-                id=default_id,
-                user_id=context.username or "system",
-                objective_node_id=context.session_id,
-                content={"question": questions, "response": response},
+        try:
+            entity_store(ConversationModel).update_records(
+                ConversationModel(
+                    id=default_id,
+                    user_id=context.username or "system",
+                    objective_node_id=context.session_id,
+                    content={"question": questions, "response": response},
+                )
             )
-        )
+        except:
+            print("Failure mode on dump TBD")
+            pass
 
 
     def __call__(

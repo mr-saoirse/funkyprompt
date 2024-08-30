@@ -74,7 +74,10 @@ class MessageStack(BaseModel):
         if not messages:
             """these are the default initial messages in the stack"""
             model = values.get("model")
-            prompt = "Answer the users questions using 1. provided data, 2. any provided functions or 3. world knowledge depending on the context. Always check that you can use functions that you have. Do not use a search function if another function or existing data can be used in place. "
+            prompt = """Answer the users questions using 1. provided data, 2. any provided functions or 3. world knowledge depending on the context. 
+            Use any Structured Response Type details you are given to respond in JSON format otherwise response in natural language.
+            Always check that you can use functions that you have. 
+            Do not use a search function facilities if another function or existing data can be used in place and do not call functions if world knowledge will suffice."""
             
             #model description is more lightweight - there may be instances when its enough
             #e.g. the entity type and functions can be determine at runtime via lookups (TODO: optimize this)

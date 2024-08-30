@@ -124,18 +124,14 @@ class Plan(AbstractEntity):
         """
         This is provided for promptables i.e. model schema to prompt dump.
         These data will be injected into a large prompt
-
+        
+        THIS IS KV CACHE STUFF
         """
 
         def describe_available_entity_functions()->dict:
+            """entities are loaded from the library for now but could be from elsewhere"""
             from funkyprompt.entities import load_entities
-            
-            entities = load_entities()
-            models = {}
-            for e in entities:
-                models[e.get_model_fullname()] = e._describe_model()
-            
-            return models
+            return {e.get_model_fullname(): e._describe_model for e in load_entities()}
 
         return f"""
 ## Available entity functions

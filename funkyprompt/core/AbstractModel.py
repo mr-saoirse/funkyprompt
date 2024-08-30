@@ -25,6 +25,27 @@ def can_parse_json(d):
     except:
         return False
     
+def create_config(name:str, namespace:str, description:str, functions: typing.Optional[typing.List[dict]]):
+    """generate config classes on dynamic instances"""
+    def _create_config(class_name, *property_names):
+        class_dict = {}
+        for prop in property_names:
+            class_dict[prop] = property(
+                fget=lambda self, prop=prop: getattr(self, f'_{prop}', None),
+                fset=lambda self, value, prop=prop: setattr(self, f'_{prop}', value)
+            )
+        return type(class_name, (object,), class_dict)
+
+
+    Config = _create_config('Config', 'name', 'namespace', 'description', 'functions', 'is_abstract')
+    Config.name = name
+    Config.namespace = namespace
+    Config.description = description
+    Config.functions = functions
+    Config.is_abstract = True
+    
+    return Config
+
 class Node(BaseModel):
     """a simple node"""
     name: str
@@ -128,6 +149,7 @@ class AbstractModel(BaseModel):
         c = getattr(cls, "Config", None)
         if c and getattr(c, "description", None):
             return c.description
+        return getattr(cls, '__doc__', None)
 
     @classmethod
     def get_model_fullname(cls):
@@ -165,15 +187,57 @@ class AbstractModel(BaseModel):
         return getattr(cls, cls.get_model_key_field())
 
     @classmethod
-    def create_model(cls, name: str, namespace: str = None, **fields):
+    def create_model(cls, name: str, namespace: str = None, description:str=None, functions:typing.List[str] = None, **fields):
         """
         For dynamic creation of models for the type systems
         create something that inherits from the class and add any extra fields
+        
+        Args:
+            name: name of the model (only required prop)
+            namespace: namespace for the model - types take python models or we can use public as default
+            description: a markdown description of the model e.g. prompt with structured type tables
+            functions: a list of function descriptions e.g. name, url, verb, security provider
         """
+        
         namespace = namespace or cls.get_model_namespace()
-        return create_model(name, **fields, __module__=namespace, __base__=cls)
+        model =  create_model(name, **fields, __module__=namespace, __base__=cls)
 
-    # def get_dynamic_functions
+        model.Config = create_config(name=name, 
+                                     namespace=namespace,
+                                     description=description,
+                                     functions=functions or [])
+        
+        return model
+    
+    @classmethod
+    def create_model_from_markdown(cls, markdown:str, namespace_override:str='public'):
+        """most of the prompt is markdown but we also provide functions as links (assumed to be URLS when brought in from markdown (External)).
+        The structured type in some cases could be related separately to the language model e.g. as pydantic but this approach allows for tweaking descriptions and provably works well even for complex structures
+        """
+        from funkyprompt.core.types.markdown import MarkdownAgent
+        spec = MarkdownAgent.parse_markdown_to_agent_spec(markdown )
+        
+ 
+        structured_types = f""
+        
+        for stype in spec.structured_response_types:
+            structured_types+= f"### {stype.name}\n"
+            structured_types += f"**field name** | **description** | **type**  \n---|---|---  \n"
+            for cells in stype.rows:
+                structured_types += "|".join(cells) + '\n'
+        
+        desc = f"""
+# {spec.name}
+{ spec.description}
+
+## Structured response types
+{structured_types}
+        """
+        
+        functions = [f.model_dump() for f in spec.function_links]
+        
+        return cls.create_model(name=spec.name, description=desc, namespace=namespace_override, functions=functions)
+    
 
     def get_dummy_values(cls):
         """dummy values useful in some automation"""
@@ -254,6 +318,11 @@ class AbstractModel(BaseModel):
 
         this is experimental and may not be a perfect abstraction
         """
+        
+        if hasattr(cls, "Config") and hasattr(cls.Config, 'is_abstract'):
+            if cls.Config.is_abstract:
+                """for example when loading dynamically from data or markdown we do not use typing info"""
+                return cls.get_model_description()
         
         from funkyprompt.core.types.pydantic import get_pydantic_properties_string
 

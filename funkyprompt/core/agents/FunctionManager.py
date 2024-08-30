@@ -114,11 +114,10 @@ class FunctionManager:
             function_names (dict): provide a map of the function and the entity it belongs to
         """
         from funkyprompt.entities import load_entities
-        SEP = '_'
+ 
         """this will become smarter and faster"""
         entities = load_entities()
         entities = {e.get_model_fullname():e for e in entities}
-
  
         for f, entity_name in function_names.items():
             """remove any qualification"""
@@ -136,7 +135,7 @@ class FunctionManager:
         self.functions = {}
 
     def search(self, question: str, limit: int = None, context: CallingContext = None):
-        """search a deep function registry. The plan could be used to hold many functions in an in-memory/in-context registry.
+        """search a deep function registry (API). The plan could be used to hold many functions in an in-memory/in-context registry.
         This as cost implications as the model must keep all functions in the context.
         On the other hand, a vector search can load functions that might be interesting but it may not be accurate or optimal
 
