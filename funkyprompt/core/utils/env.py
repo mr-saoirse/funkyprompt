@@ -2,10 +2,10 @@ import os
 from pathlib import Path
 from importlib import import_module
 
-POSTGRES_DB = "postgres"
+POSTGRES_DB = "app" # "postgres"
 POSTGRES_SERVER = "localhost"
 POSTGRES_PORT = 5432
-POSTGRES_PASSWORD = "password"
+POSTGRES_PASSWORD =  "password"
 POSTGRES_USER = "sirsh"
 POSTGRES_CONNECTION_STRING = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_SERVER}:{POSTGRES_PORT}/{POSTGRES_DB}"
 AGE_GRAPH = "funkybrain"

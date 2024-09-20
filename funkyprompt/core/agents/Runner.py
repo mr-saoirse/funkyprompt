@@ -60,6 +60,10 @@ class Runner:
         self._function_manager.add_function(self.help) # :)
         self._function_manager.add_function(self.activate_functions_by_name)
         """more complex things will happen from here when we traverse what comes back"""
+        
+        """weather we should but this crud here remains to be seen - it could be a property of the model instead"""
+        self._function_manager.add_function(self.save_entity)
+        
     
     def activate_functions_by_name(self, function_name_to_entity_mapping: dict):
         """
@@ -103,6 +107,22 @@ class Runner:
         
         """when we return the entities, its better to return them with metadata (as opposed to just fetching the record data only)"""
         return AbstractModel.describe_models(entities)
+    
+    def save_entity(self, entity:dict, structure_name: str=None):
+        """Save entities that match the response schema given
+        
+        Args:
+            entity: dictionary values matching the entity structure
+            structure_name: if multiple known structures, provide the name
+        """
+        
+        from funkyprompt.services import entity_store
+       
+        try:
+            _ =  entity_store(self.model).update_records(self.model(**entity))
+            return {'status': 'entity save'}
+        except Exception as ex: 
+            return {'status': 'error', 'detail': repr(ex)}
 
     def help(self, questions: str | typing.List[str]):
         """if you are stuck ask for help with very detailed questions to help the planner find resources for you.

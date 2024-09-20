@@ -3,8 +3,15 @@
   but properties act as a response template which will be a json response.
 """
 
-from funkyprompt.core import AbstractModel
+from funkyprompt.core import AbstractModel, AbstractContentModel, AbstractEntity
 import typing
+from pydantic import Field
+import os
+import requests
+        
+"""for testing we always have a single function api but in theory other apis could be registered"""
+FP_API_ROOT = f"https://{os.environ.get('FP_API')}"
+openapi_spec_uri = f'{FP_API_ROOT}/openapi.json'
 
 
 AGENT_CORE_DESCRIPTION = """
@@ -78,3 +85,69 @@ class DefaultAgentCore(AbstractModel):
         print(f"funky_prompt_codebase/{questions=}")
 
         return {"questions": questions, "the following entities exist": load_entities()}
+
+
+class AgentBuilder(AbstractContentModel):
+    """Use to create agents which are basically markdown agents in funkyprompt"""
+    class Config:
+        name: str='agent'
+        namespace: str = 'core'
+        as_json: bool = True
+        description = f"""
+        Your job is to create the agent template using the information provided. 
+        You can use an openapi json for an API {openapi_spec_uri} and the user will provide a list of tasks they would like to be able to perform using an agent. 
+        Please include a list to only the functions that will help the user in their task
+      
+        - you can use a function to lookup the openapi json spec
+        - You will be provided with an agent name and namespace  - if no namespace is given use `public`. make sure to snake case the name as <namespace>.<agent_name>. Choose a suitable name if none is given defaulting to just the name of the entity in question
+        - you should provide a detailed description of the agent in the content field
+        
+        """
+        
+    functions_markdown: str = Field(description="bullet list of markdown formatted functions using the hyperlink format including verb prefix - [verb:endpoint](https://domain.com/prefix/docs#/[Tag]/operationid) based on the OpenAPI.Json provided ")
+    structured_response_markdown: str
+
+           
+    @classmethod
+    def get_openapi_json_schema(cls,context:str=None):
+        """get the openapi json schema
+        
+        **Args**
+            context: optional context to choose a schema
+        """
+
+        spec = requests.get(openapi_spec_uri)
+        return spec.json()
+    
+    def instantiate_markdown_agent(self) -> AbstractContentModel:
+        """
+        we are explicit about create an abstract model/entity from the markdown
+        """
+        markdown = self.get_instance_model_as_prompt()            
+        model = AbstractContentModel.create_model_from_markdown( markdown=markdown) 
+        return model
+        
+    #this is to allow a path to test a loaded instance but the correct thing to 
+    #do would be explicit about creating a markdown agent from the loaded instance
+    def get_instance_model_as_prompt(cls):
+        """
+        override the cls method?
+        """
+        
+        print(cls)
+        
+        return f"""
+# {cls.name}
+
+{cls.content}
+
+## Structured Response Types
+
+{cls.structured_response_markdown}
+
+## Available Functions
+
+{cls.functions_markdown}
+
+        """
+        

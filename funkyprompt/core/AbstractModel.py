@@ -120,6 +120,16 @@ class AbstractModel(BaseModel):
         description="A unique hash/uuid for the entity. The name can be hashed if its marked as the key",
     )
 
+    
+    @staticmethod
+    def ensure_model_not_instance(cls_or_instance: typing.Any):
+        from pydantic._internal._model_construction import ModelMetaclass
+        if not isinstance(cls_or_instance, ModelMetaclass) and isinstance(cls_or_instance,AbstractModel):
+            """because of its its convenient to use an instance to construct stores and we help the user"""
+            return cls_or_instance.__class__
+        return cls_or_instance
+            
+    
     @classmethod
     def get_model_name(cls):
         c = getattr(cls, "Config", None)
@@ -210,15 +220,20 @@ class AbstractModel(BaseModel):
         return model
     
     @classmethod
-    def create_model_from_markdown(cls, markdown:str, namespace_override:str='public'):
+    def create_model_from_markdown(cls, markdown:str, namespace_override:str='public', preserve_markdown:bool=True):
         """most of the prompt is markdown but we also provide functions as links (assumed to be URLS when brought in from markdown (External)).
         The structured type in some cases could be related separately to the language model e.g. as pydantic but this approach allows for tweaking descriptions and provably works well even for complex structures
         """
         from funkyprompt.core.types.markdown import MarkdownAgent
         spec = MarkdownAgent.parse_markdown_to_agent_spec(markdown )
         
- 
         structured_types = f""
+        
+        name = spec.name
+        #apply conventions
+        if '.' in name:
+            namespace_override = name.split('.')[0]
+            name = name.split('.')[1]
         
         for stype in spec.structured_response_types:
             structured_types+= f"### {stype.name}\n"
@@ -226,19 +241,31 @@ class AbstractModel(BaseModel):
             for cells in stype.rows:
                 structured_types += "|".join(cells) + '\n'
         
-        desc = f"""
-# {spec.name}
-{ spec.description}
+        if preserve_markdown:
+            desc = markdown
+        else:
+            #"""this is an experimental model to mask certain things until asked for them e.g. functions"""
+            desc = f"""
+    # {spec.name}
+    
+    { spec.description}
 
-## Structured response types
-{structured_types}
-        """
+    ## Structured response types
+    {structured_types}
+            """
         
         functions = [f.model_dump() for f in spec.function_links]
         
-        return cls.create_model(name=spec.name, description=desc, namespace=namespace_override, functions=functions)
+        return cls.create_model(name=name, description=desc, namespace=namespace_override, functions=functions)
     
-
+    @classmethod
+    def create_model_from_json(cls, data: dict):
+        """
+        A yaml format would be preferred for this but we load and parse
+        """
+        pass
+        
+        
     def get_dummy_values(cls):
         """dummy values useful in some automation"""
         pass
@@ -324,23 +351,14 @@ class AbstractModel(BaseModel):
                 """for example when loading dynamically from data or markdown we do not use typing info"""
                 return cls.get_model_description()
         
-        from funkyprompt.core.types.pydantic import get_pydantic_properties_string
+        from funkyprompt.core.types.pydantic import get_markdown_description
 
         injected_data = ""
         if getattr(cls, "_get_prompting_data", None) is not None:
             injected_data = cls._get_prompting_data()
-
-        return f"""## About the model: {cls.get_model_name().upper()}
-    
-### Description
-
-{cls.get_model_description()}
-    
-### About the types and fields you in the response model (JSON)
-
-_the child types will appear first followed by the parent model to use_
-
-{get_pydantic_properties_string(cls, cls._get_child_models())}
+        #  todo include functions in the markdown - expected these are "external" functions i.e. API calls
+        
+        return f"""{get_markdown_description()  }
 
 {injected_data}
     """
@@ -376,7 +394,7 @@ _the child types will appear first followed by the parent model to use_
         return entity_store(cls)._create_model()
     
     @classmethod
-    def _ask(cls, question:str, raw_results:bool=False):
+    def _ask(cls, question:str, raw_results:bool=False, review_messages:bool=False):
         """convenience method to load up an entity store with the model and 
         ask a question and optionally run the wrong store query
         this is hidden for now so as not to harden this interface
@@ -387,7 +405,11 @@ _the child types will appear first followed by the parent model to use_
         result = entity_store(cls).ask(question) 
         if raw_results:
             return result
+        
         messages= MessageStack.from_q_and_a(question, result)
+        if review_messages:
+            return messages
+                            
         lm_client: LanguageModel = language_model_client_from_context(None)
         response = lm_client(messages=messages, functions=None, context=None)
         return response 
@@ -490,7 +512,11 @@ class AbstractEntity(AbstractModel):
     """
 
     name: str = Field(description="The name is unique for the entity", is_key=True)
-
+    """for now im excluding the user name but the entities should carry them eventually"""
+    username: typing.Optional[str] = Field(description='username universally unique e.g. email', default=None, exclude=True)
+    
+    graph_paths: typing.Optional[typing.List[str]|str] = Field(description="These (unique) paths are added as graph paths from the document", default_factory=list)
+     
     @classmethod
     def _lookup_entity(cls, name:str, include_relations: bool=False):
         """convenience to lookup the type by name (cypher query on the node)"""
@@ -506,10 +532,20 @@ class AbstractEntity(AbstractModel):
     @classmethod
     def _id(cls, values):
         """"""
+        from funkyprompt.core.utils.parsing import json_loads
         if not values.get("id"):
             """very important to observe current convention of 
             id generated from caseless string"""
-            values["id"] = funky_id(values["name"].lower())
+            values["id"] = funky_id(values["name"].lower(), values.get('username'))
+        
+        """the SQL model or other things could do this"""
+        gp = values.get('graph_paths')
+        try:
+            if gp and isinstance(gp,str):
+                gp = [gp] if not (',' in gp) else json_loads(gp)
+            values['graph_paths'] = gp
+        except:
+            raise Exception(f"failed to validate while parsing {values=}")
         return values
 
     @classmethod
@@ -526,7 +562,21 @@ class AbstractEntity(AbstractModel):
         from funkyprompt.services import entity_store
 
         return entity_store(cls).ask(questions, limit, **kwargs)
+    
+ 
 
+    def save(cls):
+        from funkyprompt.services import entity_store
+         
+        return entity_store(cls).update_records(cls)
+        
+    @classmethod
+    def select(cls, limit:int=10):
+        """"""
+        from funkyprompt.services import entity_store
+         
+        return entity_store(cls).select(limit)
+        
     @classmethod
     def upsert_entity(cls, name:str, data_delta: dict)->"AbstractModel":
         """Save the entity by merging new and old data to the final object.
@@ -604,6 +654,7 @@ class AbstractContentModel(AbstractEntity):
         default=None, description="the grouping category for the content"
     )
 
+   
 
 class AbstractImageContentModel(AbstractContentModel):
     """like the abstract content model but for image data"""

@@ -1,4 +1,4 @@
-from funkyprompt.core import AbstractEntity, typing, Field, OpenAIEmbeddingField,RelationshipField
+from funkyprompt.core import AbstractEntity, AbstractContentModel, typing, Field, OpenAIEmbeddingField,RelationshipField
 import datetime
 from . import GenericEntityTypes
 from pydantic import model_validator
@@ -141,7 +141,7 @@ class Task(Project):
         return entity_store(cls).execute(q, (status, task_names))
 
     @classmethod
-    def set_task_target_completion(
+    def set_task_target_completion_date(
         cls, task_names: typing.List[str], date: str | datetime.datetime
     ):
         """Move all tasks by name to the given status
@@ -156,7 +156,15 @@ class Task(Project):
             task_names = [task_names]
 
         """could set these to upserts for cases where actually its not there"""
-        
+       
+        """we should make these operations idempotent and work in contexts where the thing does not exist - check what the unique id should be resolved to e.g. name.user->id""" 
+        # q = f"""
+        # INSERT INTO {cls.sql().table_name} (name, target_completion)
+        # VALUES (%s, %s)
+        # ON CONFLICT (name) 
+        # DO UPDATE SET target_completion = EXCLUDED.target_completion
+        # """
+
         q = f"""UPDATE {cls.sql().table_name} set target_completion=%s WHERE name = ANY(%s)"""
 
         return entity_store(cls).execute(q, (date, task_names))
@@ -338,3 +346,71 @@ class PersonPreferences(AbstractEntity):
         if values.get('related_entities'):
             values['related_entities'] = utils.coerce_json(values['related_entities'] )
         return values
+    
+    
+    
+class Diary(AbstractContentModel):
+    class Config:
+        namespace: str = 'public'
+        name: str = 'diary'
+        description:str = """ Your job is to summarize the text based on the users interests using Markdown but do not fence the markdown. You can do this by reproducing the main contain including web links. You can use a special markdown format or MTags to categorize the text.
+
+These MTags are of the link format [A/B (Weight)](A/B) where B is one of the user’s broad preferences and A is a sub category of your choice and Weight is a score between 0 and 1 about the relevance. This creates a path between a user and the sub category and sub broad category in two hops.
+You can use MTags both to group the summary into sections and to add highlights to part of the text. For example within paragraphs you can add MTags beside the text to show its importance.
+
+The user’s interests are Business, Technology, Personal Development (includes time management and productivity) and you should only use these for instances of A. The user is also specifically interested in the idea of the value of information in a world where we are overloaded and overwhelmed by too much information and how we can build tools to control information value based on user intent.
+Please maintain a detailed format of the content including related resources. Any web links are very important to maintain.
+
+When asked about the diary you can use the run_search method to find entries and you can also observe the special graph_path tags to find similar results especially if a deeper analysis is required.
+
+ """
+
+    @classmethod
+    def visit_site_and_summarize(cls, uri: str, context:str=None):
+        """
+        Visit the site and use an internal agent to summarize the text in some context.
+        The context is important to manage the utility of the information at the source.
+        
+        Args:   
+            uri: the web ury to scrape and summarize
+            context: the optional context to add for summarization
+        """
+        
+        from funkyprompt.core.utils.parsing.web import scrape_text
+        from funkyprompt import summarize
+        text = scrape_text(uri)
+        
+        text = f"""# Summary of {uri}
+{text}
+        """
+        
+        return summarize(text, context)
+    
+    #may move this to entity later
+    @classmethod
+    def explore_similar_by_graph_path_tags(cls, graph_paths: str):
+        """Given some interesting tags which we call graph_paths, you can lookup similar entries by those tags
+           An example tag would be an area of interest like Robotics/AI where this provides a path between a specific category like robotics in the field of AI 
+           
+           Args:
+            graph_paths: the tag in the format A/B given   
+        
+        """
+        from funkyprompt.core.utils.parsing import json_loads
+        from funkyprompt.core import logger
+        
+        """TODO - this shows we are not parsing models properly from the database if the tags are not lists"""
+        graph_paths = json_loads(graph_paths)
+        
+        logger.debug(f"Exploring tags {graph_paths=}")
+        from funkyprompt.services import entity_store
+
+        return entity_store(cls).graph.query_by_path(graph_paths)
+        
+        
+class Summary(AbstractContentModel):
+    class Config:
+        namespace: str = 'public'
+        name: str = 'summary'
+        description:str = """Maintain summaries as a separate node"""
+          

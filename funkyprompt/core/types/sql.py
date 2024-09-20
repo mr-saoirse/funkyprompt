@@ -309,6 +309,7 @@ class SqlHelper:
             [f"({insert_values})" for _ in range(batch_size)]
         )
 
+        # ^old school way but for psycopg2.extras.execute_values below is good
         value_placeholders = "%s"
 
         """batch insert with conflict - prefix with a delete statement that sets items to deleted"""

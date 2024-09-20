@@ -57,3 +57,31 @@ def ask(question, context=None, **kwargs):
 
     model = language_model_client_from_context()
     return model(question, context=context, **kwargs)
+
+
+def summarize(text:str, context:str, model:AbstractModel=None):
+    """
+    This is a handy summarization method but we can evolve it
+    its not that different to ask but would some bias   
+    """
+    
+    Q = f"""Please provide a comprehensive summary of the text and include useful web links and references that can be used for further analysis. You can suggest some useful books or blogs if you know some.
+    
+    ## Text to summarize
+    
+    ```text
+    {text}
+    ```
+    ## Added context
+    
+    ```text
+    {context}
+    ```
+    
+    """
+    
+    from funkyprompt.services import language_model_client_from_context
+
+    model = language_model_client_from_context()
+    
+    return model(Q)

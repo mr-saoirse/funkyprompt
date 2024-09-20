@@ -14,7 +14,7 @@ from funkyprompt.core.agents import (
 )
 from ..functions import Function
 import typing
-
+from funkyprompt.core.utils.openapi import Cache
 
 class FunctionManager:
     """The function manager is used to plan and search over functions.
@@ -111,7 +111,7 @@ class FunctionManager:
         2. adding the function to the runtime so it can be called by the Runner
 
         Args:
-            function_names (dict): provide a map of the function and the entity it belongs to
+            function_names (dict): provide a map of the function and the entity it belongs to. if the function is prefixed with a verb such as get or post, please retain it in the name
         """
         from funkyprompt.entities import load_entities
  
@@ -120,12 +120,18 @@ class FunctionManager:
         entities = {e.get_model_fullname():e for e in entities}
  
         for f, entity_name in function_names.items():
-            """remove any qualification"""
-            f = f.replace(f"{entity_name}_", '')
-            entity = entities.get(entity_name)
-            if entity is None:
-                raise Exception(f"The entity {entity_name} does not exist or cannot be loaded from {entities}")
-            self.add_function(getattr(entity,f))
+            #temp hack - we want to have multiple ways to add functions - this is a universal api naming thing
+            if ":" in f: ##api types - not sure how to distinguish in future yet
+                F = Cache.resolve_endpoint(f)
+                F = Function.from_openapi_endpoint(F)
+                self.add_function(F)
+            else: #entity function
+                """remove any qualification"""
+                f = f.replace(f"{entity_name}_", '')
+                entity = entities.get(entity_name)
+                if entity is None:
+                    raise Exception(f"The entity {entity_name} does not exist or cannot be loaded from {entities}")
+                self.add_function(getattr(entity,f))
             
         """only return the ones we add successfully"""
         return function_names

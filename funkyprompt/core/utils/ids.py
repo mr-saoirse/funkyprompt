@@ -13,8 +13,8 @@ def uuid_str_from_dict(d):
     return str(uuid.UUID(m.hexdigest()))
 
 
-def funky_id(name: str = None):
-    return uuid_str_from_dict({"name": name})
+def funky_id(name: str = None, user_id:str=None):
+    return uuid_str_from_dict({"name": name, "user": user_id})
 
 
 def funky_hash(s: str = None, length: int = 5, prefix="fun"):

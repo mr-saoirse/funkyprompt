@@ -18,6 +18,7 @@ from funkyprompt import LanguageModelProviders
 import docstring_parser
 import typing
 import re
+from funkyprompt.core.utils.openapi import ApiEndpoint
 
 """for example open ai does not allow some stuff like dots"""
 REGEX_ALLOW_FUNCTION_NAMES: str = (
@@ -247,18 +248,19 @@ class Function(AbstractEntity):
 
     @classmethod
     def from_openapi_endpoint(
-        cls, name: str, open_api_json_or_url: str | dict, bearer_token_key: str = None
+        cls, api_endpoint: ApiEndpoint
     ) -> "_RunTimeFunction":
         """Given a named endpoint and the spec, provide a callable function description.
            (Maybe need some token provider beyond bearer)
 
         Args:
-            name: endpoint name
-            open_api_json_or_url (str | dict): provide schema or url to schema
-            bearer_token_key: a reference to the environment loading of bearer token
+            api_endpoint: this is our structure api type
         """
-        pass
-
+        return _RunTimeFunction(_function=api_endpoint.invoke, 
+                                name=api_endpoint.name, 
+                                description=api_endpoint.description, 
+                                parameters=api_endpoint.parameters)
+    
     """convenience callable behaviors - not serialized"""
     _function: typing.Optional[typing.Callable] = PrivateAttr(default=None)
 

@@ -17,7 +17,7 @@ from funkyprompt.core.utils.env import POSTGRES_CONNECTION_STRING, AGE_GRAPH
 from funkyprompt.core.utils import logger
 from funkyprompt.core.types.sql import VectorSearchOperator
 from funkyprompt.entities import resolve as resolve_entity
-
+from pydantic._internal._model_construction import ModelMetaclass
 
 def cypher_with_age_wrapper(q: str, returns=None):
     """wrapper a cypher query - specify the return variables expected"""
@@ -53,7 +53,35 @@ def _parse_vertex_result(x):
 
     return d
 
+class GraphManager:
+    def __init__(self, service: "PostgresService"):
+        self._service = service
+        
+    def query_by_path(cls, path, edge_name='TAG', filter_node_types: typing.Optional[str] = None):
+        """
+        given a path A/B/C we query nodes connected along edges (tags)
+        """
+        
+        #TEMP - we can do multiple easily enough
+        if isinstance(path,str):
+            path = [path]
+                    
+        if len(path):
+            """for any number of matches"""
+            predicates = f" OR ".join([f"( b.name = '{p.split('/')[0]}' and c.name = '{p.split('/')[1]}' )" for p in path])
+            Q = f"""MATCH (a)-[:{edge_name}]->(b)-[:{edge_name}]->(c)
+            WHERE {predicates}
+            RETURN a
+            """
 
+            logger.trace(f"Query names {Q=}")
+            data = cls._service._execute_cypher(Q)
+            names = [json.loads(d['n'].split('::')[0]).get('properties',{}).get('name') for d in data]
+            
+            logger.debug(f"Query names {names=}")
+            return cls._service.select_by_names(names)
+        else:
+            raise Exception("You must pass a set of paths of the form A/B")
 class PostgresService(DataServiceBase):
     """the postgres service wrapper for sinking and querying entities/models
 
@@ -84,11 +112,26 @@ class PostgresService(DataServiceBase):
 
     def __init__(self, model: AbstractModel):
         self.conn = psycopg2.connect(POSTGRES_CONNECTION_STRING)
-        self.model: AbstractModel = model
+        """we do this because its easy for user to assume the instance is what we want instead of the type"""
+        model = AbstractModel.ensure_model_not_instance(model)
+        self.model = model
 
     def _alter_model(cls):
         """try to alter the table by adding new columns only"""
         raise NotImplementedError("alter table not yet implemented")
+    
+    def _drop_graph(self):
+        """danger zone"""
+        Q = """MATCH (n)
+            DETACH DELETE n"""
+            
+        return self._execute_cypher(Q)
+    
+    
+    def _create_schema(self, schema_name:str):
+        """create a schema in the database"""
+        Q = f"""CREATE SCHEMA {schema_name}"""
+        return self.execute(Q)
 
     def _create_model(cls):
         """internal create model"""
@@ -126,6 +169,11 @@ class PostgresService(DataServiceBase):
         """run any sql query
         this works only for selects and transactional updates without selects
         """
+        
+        # lets not do this for a moment
+        # if not isinstance(data, tuple):
+        #     data = (data,)
+        
         if not query:
             return
         try:
@@ -148,7 +196,7 @@ class PostgresService(DataServiceBase):
             """case of upsert no-query transactions"""
             cls.conn.commit()
         except Exception as pex:
-            logger.warning(f"Failing to execute query {query} for model {cls.model}")
+            logger.warning(f"Failing to execute query {query} for model {cls.model} - Postgres error: {pex}, {data}")
             cls.conn.rollback()
             raise
         finally:
@@ -176,6 +224,11 @@ class PostgresService(DataServiceBase):
         the raw table is associated with separate embeddings table via a view
         """
         return cls(model)._create_model()
+    
+    @property
+    def graph(self):
+        """provide access to extended graph based functionality"""
+        return GraphManager(self)
 
 
     def queue_update_embeddings(self, result: typing.List[dict]):
@@ -203,6 +256,24 @@ class PostgresService(DataServiceBase):
         return self.execute_upsert(
             query=query, data=(helper.partial_model_tuple(e) for e in embeddings)
         )
+        
+    def select_by_names(self, names: typing.List[str]):
+        """name lookup"""
+        if not names:
+            return
+        if not isinstance(names,list):
+            names = [names]
+        column: str = "name"
+        """selects one by name using the internal model"""
+        table_name = self.model.get_model_fullname()
+        fields = ",".join(self.model.sql().field_names)
+        q = f"""SELECT { fields } FROM {table_name} where {column} = ANY(%s);"""
+        data = self.execute(q,names)
+        if len(data):
+            logger.debug(f"Fetched {len(data)} related entries")
+            """TODO: trace loaded keys here and elsewhere as this is like citations"""
+            return [self.model(**dict(d)) for d in data ]
+        
 
     def select_one(self, name: str, column: str = "name"):
         """selects one by name using the internal model"""
@@ -212,7 +283,15 @@ class PostgresService(DataServiceBase):
         data = self.execute(q)
         if len(data):
             return self.model(**dict(data[0]))
-
+        
+    def select(self, limit:int=None):
+        """selects top records ordered by date desc"""
+        table_name = self.model.get_model_fullname()
+        fields = ",".join(self.model.sql().field_names)
+        q = f"""SELECT { fields } FROM {table_name} order by created_at desc limit {limit or 10}"""
+        data = self.execute(q)
+        return [self.model(**dict(d)) for d in data]
+        
     def ask(self, question: str):
         """[DEPRECATE] natural language to SQL is used to query the store"""
         # prompt  = self.model.get_model_as_prompt()
@@ -228,7 +307,7 @@ class PostgresService(DataServiceBase):
         return entity
 
     @classmethod
-    def get_nodes_by_name(cls, name: str) -> typing.List[AbstractEntity]:
+    def get_nodes_by_name(cls, name: str, default_model: None) -> typing.List[AbstractEntity]:
         """the node mode is only useful when we are invariant to types,
         because we can resolve nodes even when we dont know their type.
         Suppose an LLM knows that something _is_ an entity but does not know what it is
@@ -251,6 +330,10 @@ class PostgresService(DataServiceBase):
            we need to do multiple select_ones for each matched type here (TODO:)
         """
         data = [_parse_vertex_result(x) for x in data]
+        if not len(data):
+            """we are going to try and use graph nodes to manage any type but we can also just assume one exists on this entity type"""
+            data = [ {'name':name, 'model': default_model } ]
+            
         """a not so efficient way to load entities but fine for now"""
         valid_entities = []
         for d in data:
@@ -315,7 +398,7 @@ class PostgresService(DataServiceBase):
         # we should try to avoid using general entity terms and use this just for specific things
         if classification.recommend_query_type == "ENTITY":
             for e in classification.entities:
-                for r in self.get_nodes_by_name(e):
+                for r in self.get_nodes_by_name(e, default_model=self.model):
                     results[r.id] = r
             # if we have nothing, try the other options
             if len(results):
@@ -336,9 +419,14 @@ class PostgresService(DataServiceBase):
         """fall back to a vector search - a temporal predicate will be needed here"""
         count_vector_result = 0
         for q in classification.decomposed_questions:
-            for r in self.vector_search(q):
-                results[r["id"]] = r
-                count_vector_result+= 1
+            try:
+                for r in self.vector_search(q):
+                    results[r["id"]] = r
+                    count_vector_result+= 1
+            except:
+                #because we do this aspirationally we only error if the recommended type was vector
+                if classification.recommend_query_type == 'VECTOR':
+                    raise
         #telemetry
         logger.debug(f"fetched {count_vector_result} using vector search")
         return list(results.values())
@@ -422,7 +510,10 @@ class PostgresService(DataServiceBase):
 
         if records and not isinstance(records, list):
             records = [records]
-        helper = self.model.sql()
+        """
+        something i am trying to understand is model for sub classed models e.g. missing content but
+        """
+        helper = self.model.sql()  
         data = [
             tuple(helper.serialize_for_db(r).values()) for i, r in enumerate(records)
         ]
@@ -445,16 +536,22 @@ class PostgresService(DataServiceBase):
             """
             if issubclass(self.model, AbstractEntity):
                 """save the primary node ref - this doubles as a key-value lookup"""
-                query = self.model.cypher().upsert_nodes_statement(records, has_full_entity=True) 
-                logger.trace(query)
-                _ = self._execute_cypher(query)
-                """export all edges pointing away from each entity using the metadata"""
-                nodes_query, edges_query = self.model.cypher().upsert_relationships_queries(records)
-                logger.trace(nodes_query)
-                logger.trace(edges_query)
-                _ = self._execute_cypher(nodes_query)
-                _ = self._execute_cypher(edges_query)
                 
+                query = self.model.cypher().upsert_path_statements(records)
+                logger.trace(query)
+                _ = self._execute_cypher(query=query)
+                
+                """al alternative options"""
+                # query = self.model.cypher().upsert_nodes_statement(records, has_full_entity=True) 
+                # logger.trace(query)
+                # _ = self._execute_cypher(query)
+                # """export all edges pointing away from each entity using the metadata"""
+                # nodes_query, edges_query = self.model.cypher().upsert_relationships_queries(records)
+                # logger.trace(nodes_query)
+                # logger.trace(edges_query)
+                # _ = self._execute_cypher(nodes_query)
+                # _ = self._execute_cypher(edges_query)
+ 
             return result
 
 

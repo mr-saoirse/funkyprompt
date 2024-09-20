@@ -6,6 +6,119 @@ import sys
 import inspect
 import types
 
+def get_innermost_args(type_hint):
+    """
+    Recursively extracts the innermost type arguments from nested Optionals, Lists, and Unions.
+    """
+
+    if typing.get_origin(type_hint) is typing.Union:
+        for arg in typing.get_args(type_hint):
+            if arg is not type(None):  
+                return get_innermost_args(arg)
+
+    if typing.get_origin(type_hint) is list or type_hint == typing.List:
+        list_args = typing.get_args(type_hint)
+        if list_args:
+            return get_innermost_args(list_args[0])
+
+    return type_hint
+
+def match_type(inner_type, base_type) -> bool:
+    """
+    Recursively check if any of the inner types match the base type.
+
+    """
+    arg = get_innermost_args(inner_type)
+    if issubclass(arg, base_type):
+        return arg
+
+def get_model_reference_types(obj, model_root, visits=None):
+    """given a model root (presume AbstractModel) find all types that references other types"""
+    annotations = typing.get_type_hints(obj) 
+    
+    """bootstrapped from the root we know about"""
+    if visits is None:
+        visits = []
+    else:
+        visits.append(obj)
+    for _, field_type in annotations.items():
+        
+        otype = match_type(field_type, model_root)
+        if otype and otype not in visits:
+            get_model_reference_types(otype, model_root, visits)
+    return visits
+
+def make_type_table(obj):
+    """generates the markdown table for the the type info from obj type annotations"""
+    def make_header(name, max_lengths):
+        return f"""### {name}
+        
+| {'Field Name'.ljust(max_lengths[0],' ')} | {'Type'.ljust(max_lengths[1],' ')}| {'Description'.ljust(max_lengths[2],' ')} |
+| {'-'.ljust(max_lengths[0], '-')}|{'-'.ljust(max_lengths[1],'-')}|{'-'.ljust(max_lengths[2],'-')}|
+"""
+        
+    annotations = typing.get_type_hints(obj)
+    elements = []
+    max_lengths = [0,0,0]
+    for field_name, field_type in annotations.items():
+        field_default = getattr(obj, field_name, ...)
+        field_info = obj.__fields__.get(field_name)
+        description =  field_info.description  if getattr(field_info, "description", None) else ""
+   
+        type_str = repr(field_type)
+        """not sure if defaults are useful in hints yet"""
+        default = None
+        if field_default is ...:
+            pass
+        else:
+            if isinstance(field_default, pydantic.Field):
+                default = repr(field_default.default) 
+            else:
+                default = repr(field_default)
+        if max_lengths[0] < len(field_name):
+            max_lengths[0] = len(field_name)
+        if max_lengths[1] < len(type_str):
+            max_lengths[1] = len(type_str)
+        if max_lengths[2] < len(description):
+            max_lengths[2] = len(description)
+            
+        elements.append([field_name, type_str.replace('typing.',''), description])        
+        
+    table = make_header(obj.get_model_name(), max_lengths)
+    for el in elements:
+        table += f"""| {el[0].ljust(max_lengths[0],' ')}| {el[1].ljust(max_lengths[1], ' ')}| {(el[2] or '').ljust(max_lengths[2], ' ')}|""" + '\n'
+    
+    return table + '\n'
+
+
+def get_markdown_description(cls: "AbstractModel", functions: typing.List[dict]=None):
+    """
+    this is useful as a prompting device - from an abstract model, generate the agent prompt info
+    the prompt (names and description) is combined with nested respond types and the available api functions are registered with the type
+    """
+    from funkyprompt.core import AbstractModel
+    
+    """add any external functions i.e. api calls that the function manager can load"""
+    
+    formatted_functions = [f""" - [{d.get('name')}]({d.get('url')}) {d.get('description')}""" for d in functions or []]
+    child_types =  []
+    get_model_reference_types(cls,AbstractModel,visits=child_types)
+      
+    return f"""# {cls.get_model_name()}
+{cls.get_model_description()}
+
+## Structured Response Types
+
+{"".join(make_type_table(c) for c in child_types[::-1] if c is not cls)}
+
+{make_type_table(cls)}
+
+## Available Functions
+
+{formatted_functions}
+"""
+    
+    
 def get_pydantic_properties_string(cls, child_types=None):
     """
     this is useful as a prompting device

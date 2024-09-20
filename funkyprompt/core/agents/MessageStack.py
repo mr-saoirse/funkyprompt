@@ -4,7 +4,7 @@ from funkyprompt.core import AbstractModel, AbstractEntity
 import datetime
 import json
 from funkyprompt.core.agents import CallingContext
-
+from pydantic._internal._model_construction import ModelMetaclass
 
 class Message(BaseModel):
     role: str
@@ -74,14 +74,17 @@ class MessageStack(BaseModel):
         if not messages:
             """these are the default initial messages in the stack"""
             model = values.get("model")
-            prompt = """Answer the users questions using 1. provided data, 2. any provided functions or 3. world knowledge depending on the context. 
+            prompt = """Answer the users questions using 1. provided data, 2. any provided functions or 3. world knowledge depending on the context. 4. Call the help function before conceding.
             Use any Structured Response Type details you are given to respond in JSON format otherwise response in natural language.
             Always check that you can use functions that you have. 
             Do not use a search function facilities if another function or existing data can be used in place and do not call functions if world knowledge will suffice."""
             
             #model description is more lightweight - there may be instances when its enough
             #e.g. the entity type and functions can be determine at runtime via lookups (TODO: optimize this)
-            if hasattr(model, "get_model_as_prompt"):
+            
+            if not isinstance(model, ModelMetaclass) and isinstance(model,AbstractModel) and  hasattr(model, "get_instance_model_as_prompt"): #experimentally support model instances because we can load specific agents from data
+                prompt += (model.get_instance_model_as_prompt() or 'answer the users question\n')  
+            elif hasattr(model, "get_model_as_prompt"):
                 prompt += (model.get_model_as_prompt() or 'answer the users question\n')
             elif hasattr(model, "get_model_description"):
                 prompt += (model.get_model_description() or 'answer the users question\n')
@@ -167,7 +170,8 @@ class MessageStack(BaseModel):
         
         """
         messages= [
-            SystemMessage(content=f'The data below were retrieved from a resource and can be used to answer the users question\n````json{json.dumps(data,default=str)}``')
+            SystemMessage(content=f'The data below were retrieved from a resource and can be used to answer the users question\n````json{json.dumps(data,default=str)}``'),
+            UserMessage(content=question)
         ]
         return MessageStack(question=question,messages=messages, model=observer_model)
     
