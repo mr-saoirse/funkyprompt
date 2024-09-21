@@ -50,6 +50,9 @@ def get_model_reference_types(obj, model_root, visits=None):
 
 def make_type_table(obj):
     """generates the markdown table for the the type info from obj type annotations"""
+    
+    from funkyprompt.core import AbstractModel
+    
     def make_header(name, max_lengths):
         return f"""### {name}
         
@@ -64,8 +67,13 @@ def make_type_table(obj):
         field_default = getattr(obj, field_name, ...)
         field_info = obj.__fields__.get(field_name)
         description =  field_info.description  if getattr(field_info, "description", None) else ""
-   
+    
+        """if the root matches abstract model we are more opinionated about the nae"""
+        chk = match_type(field_type,AbstractModel)
         type_str = repr(field_type)
+        if chk:
+            type_str = type_str.replace( f"{chk.__module__}.{chk.__name__}" , chk.get_model_name())
+    
         """not sure if defaults are useful in hints yet"""
         default = None
         if field_default is ...:

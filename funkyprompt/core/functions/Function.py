@@ -14,7 +14,7 @@ from funkyprompt.core import AbstractEntity
 from funkyprompt.core import types as core_types, AbstractEntity
 from funkyprompt.core.types.inspection import resolve_signature_types, TypeInfo
 from funkyprompt.core.fields.annotations import OpenAIEmbeddingField
-from funkyprompt import LanguageModelProviders
+from funkyprompt import LanguageModelProvider
 import docstring_parser
 import typing
 import re
@@ -177,7 +177,7 @@ class Function(AbstractEntity):
         return values
 
     def to_json_spec(
-        cls, model_provider: str = LanguageModelProviders.openai, **kwargs
+        cls, model_provider: LanguageModelProvider = LanguageModelProvider.openai, **kwargs
     ) -> dict:
         """dump in a json schema format ala openai
         https://cookbook.openai.com/examples/how_to_call_functions_with_chat_models
@@ -187,12 +187,16 @@ class Function(AbstractEntity):
         props = {p.name: p.to_json_spec(**kwargs) for p in cls.parameters}
         """body - we parse the name but this must marry up with what we use elsewhere"""
         name = re.sub(REGEX_ALLOW_FUNCTION_NAMES, "", cls.name)
+        parameters_name = 'parameters'
+        if model_provider == LanguageModelProvider.anthropic:
+            #this is one difference of the function spec 
+            parameters_name = 'input_schema'
         return {
             # "type": "function",
             # "function": {
             "name": name,
             "description": cls.description[:MAX_FUNCTION_DESCRIPTION_LENGTH],
-            "parameters": {"type": "object", "properties": props},
+            parameters_name: {"type": "object", "properties": props},
             # },
         }
 

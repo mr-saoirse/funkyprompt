@@ -7,17 +7,23 @@ import json
 def create_lookup(
     data: typing.Dict[str, typing.Any]
 ) -> typing.Dict[str, typing.Dict[str, typing.Any]]:
-    """in a DAG where we are being efficient with named refs, we can get a lookup of all nodes with this and then expand for pydantic"""
+    """in a DAG where we are being efficient with named refs, we can get a lookup of all nodes with this and then expand for pydantic
+     index by ids or names for example (or both)
+    """
     lookup = {}
 
     def _traverse(node: typing.Dict[str, typing.Any]):
-        if "plan_description" in node:
-            if node["name"] not in lookup:
-                lookup[node["name"]] = {}
-            lookup[node["name"]].update(node)
-        if "depends" in node:
-            for dep in node["depends"]:
-                _traverse(dep)
+        if not isinstance(node, str):
+            if "plan_description" in node:
+                #@some sort of antifragility
+                for key_field  in ['name']:
+                    if key_field in node:
+                        if node[key_field] not in lookup:
+                            lookup[node[key_field]] = {}
+                lookup[node[key_field]].update(node)
+            if "depends" in node:
+                for dep in node["depends"]:
+                    _traverse(dep)
 
     _traverse(data)
     return lookup
@@ -26,14 +32,21 @@ def create_lookup(
 def expand_refs(
     node: typing.Dict[str, typing.Any],
     lookup: typing.Dict[str, typing.Dict[str, typing.Any]],
+    id_name_map:  typing.Dict[str,str] = None
 ) -> typing.Dict[str, typing.Any]:
     """in a DAG where we are being efficient with named refs, we can get a lookup of all nodes with this and then expand for pydantic using this function"""
     if "depends" in node:
         expanded_depends = []
         for dep in node["depends"]:
-            dep_name = dep["name"]
-            if dep_name in lookup:
-                expanded_dep = expand_refs(lookup[dep_name], lookup)
+            dep_name = dep if isinstance(dep,str) else dep.get('name')
+            """look for either the name or id in the lookup - we could reference by both?"""
+            if dep_name in lookup: 
+                expanded_dep = expand_refs(lookup[dep_name], lookup, id_name_map=id_name_map)
+                expanded_depends.append(expanded_dep)
+            #this case add resilience for using the id or the name as a reference
+            elif (id_name_map or {}).get(dep_name) in lookup: 
+                dep_name = (id_name_map or {}).get(dep_name)
+                expanded_dep = expand_refs(lookup[dep_name], lookup, id_name_map=id_name_map)
                 expanded_depends.append(expanded_dep)
             else:
                 expanded_depends.append(dep)
@@ -41,33 +54,35 @@ def expand_refs(
     return node
 
 
-PLANNING_PROMPT = f"""Below is a schema for building a plan.
-        I would like you to consider the functions provided and build a plan to solve the task.
-        You should break the problem down into steps and consider;
-        (a) what functions can be used in each step matching the correct entity to the most suitable function 
-        (b) what strategy to use in each step
-        (c) how results from one step can be embedded as questions to the next.
-        
-        Functions that can be called without other dependencies can have empty dependency list and only functions that need the result of another function should depend on the other function.
-        When calling functions in later states, you should always pass the shared context or known entities as parameters to the stage.
-            - For example if entities are needed in other stages, they should be passed in as parameters in later stages.
-        When passing data from one step to the next we can embed data in the question. 
-            - For example if we got a collection of data from one or more steps, we could ask a question such as given the data [insert data] [ask the question]
-            
-        The user will supply further instructions for the task."""
+PLANNING_PROMPT = f"""Below is a schema for building a plan allowing you to generate a JSON DAG structure for the plan.
+
+I would like you to consider the functions provided and build a plan to solve the task.
+
+You should break the problem down into steps and consider;
+(a) what functions can be used in each step matching the correct entity to the most suitable function 
+(b) what strategy to use in each step
+(c) how results from one step can be embedded as questions to the next.
+
+Functions that can be called without other dependencies can have empty dependency list and only functions that need the result of another function should depend on the other function.
+When calling functions in later states, you should always pass the shared context or known entities as parameters to the stage.
+- For example if entities are needed in other stages, they should be passed in as parameters in later stages.
+When passing data from one step to the next we can embed data in the question. 
+- For example if we got a collection of data from one or more steps, we could ask a question such as given the data [insert data] [ask the question]
+    
+The user will supply further instructions for the task."""
 
 
 class PlanFunctions(AbstractModel):
     name: str = Field(
         description="fully qualified function name e.g. <namespace>.<name>"
     )
-    bound_entity_name:str = Field(
+    bound_entity_name:str = Field(default=None,
         description="functions are discovered on entities and the entity name is required"
     )
-    description: str = Field(
+    description: str = Field(default=None,
         description="a description of the function preferably with the current context taken into account e.g. provide good example parameters"
     )
-    rating: float = Field(
+    rating: float = Field(default=0,
         description="a rating from 0 to 100 for how useful this function should be in context"
     )
 
@@ -83,16 +98,17 @@ class Plan(AbstractEntity):
     class Config:
         name: str = "plan"
         namespace: str = "core"
+        as_json: bool = True
         description = PLANNING_PROMPT
 
     name: typing.Optional[str] = Field(
         description="The unique name of the plan node", default=None
     )
 
-    plan_description: str = Field(
+    plan_description: typing.Optional[str] = Field(default=None,
         description="The plan to prompt the agent - should provide fully strategy and explain what dependencies exist with other stages"
     )
-    questions: typing.Optional[typing.List[str]] = Field(
+    questions: typing.Optional[typing.List[str]|str] = Field(
         description="The question in this plan instance as the user would ask it. A plan can be constructed without a clear question",
         default=None,
     )
@@ -105,7 +121,7 @@ class Plan(AbstractEntity):
         default=None,
     )
     depends: typing.Optional[typing.List["Plan"]] = Field(
-        description="A dependency graph - plans can be chained into waves of functions that can be called in parallel or one after the other. Data dependencies are injected to downstream plans",
+        description="A dependency graph - plans can be chained into waves of functions that can be called in parallel or one after the other. Data dependencies are injected to downstream plans. ",
         default=None,
     )
 
@@ -114,7 +130,13 @@ class Plan(AbstractEntity):
     def _expand(cls, values):
         """expand entity refs for pydantic model"""
         l = create_lookup(values)
-        values = expand_refs(values, l)
+        
+        id_name_map = {}
+        for v in l.values():
+            #allow for id name invariance
+            id_name_map[v.get('id')] = v.get('name')
+        
+        values = expand_refs(values, l, id_name_map)
         return values
     
 

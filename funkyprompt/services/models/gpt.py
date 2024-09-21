@@ -5,8 +5,10 @@ import openai
 import typing
 from funkyprompt.core.agents import CallingContext
 from funkyprompt.core.functions import FunctionCall
+from funkyprompt.core.agents import MessageStack, Function
 import json
 from . import LanguageModelBase
+from funkyprompt import LanguageModelProvider
 
 
 def _get_function_call_or_stream(
@@ -102,7 +104,11 @@ def _get_function_call_or_stream(
 
 
 class GptModel(LanguageModelBase):
-
+    
+    @classmethod
+    def get_provider(cls):
+        return LanguageModelProvider.openai
+    
     def get_function_call_or_stream(
         self,
         response: typing.Any,
@@ -119,9 +125,9 @@ class GptModel(LanguageModelBase):
 
     def run(
         cls,
-        messages: typing.List[dict],
+        messages: MessageStack,
         context: CallingContext,
-        functions: typing.Optional[dict] = None,
+        functions: typing.Optional[typing.List[Function]] = None,
         **kwargs
     ):
         """The run entry point for the agent model
@@ -132,9 +138,9 @@ class GptModel(LanguageModelBase):
 
         response = openai.chat.completions.create(
             model=context.model,
-            functions=(list(functions) if functions else None),
+            functions=([f.to_json_spec() for f in functions] if functions else None),
             function_call="auto" if functions else None,
-            messages=messages,
+            messages=messages.model_dump(),
             temperature=context.temperature,
             response_format=context.get_response_format(),
             stream=context.is_streaming,

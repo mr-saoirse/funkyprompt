@@ -5,6 +5,10 @@ import typing
 
 class LanguageModelBase:
 
+    @classmethod
+    def get_provider():
+        return None
+    
     def __call__(
         self,
         messages: str | typing.List[dict] | MessageStack,
@@ -21,8 +25,8 @@ class LanguageModelBase:
         if isinstance(messages, str):
             """simple convenience cheat"""
             messages = MessageStack(question=messages, model=DefaultAgentCore)
-        if isinstance(messages, MessageStack):
-            messages = messages.model_dump()
+        # if isinstance(messages, MessageStack):
+        #     messages = messages.model_dump()
 
         self._messages = messages
         self._functions = functions
@@ -31,7 +35,7 @@ class LanguageModelBase:
 
 
 from .gpt import GptModel
-
+from .claude import ClaudeModel
 
 def language_model_client_from_context(
     context: CallingContext = None, with_retries: int = 0
@@ -50,5 +54,8 @@ def language_model_client_from_context(
     """
     context = context or CallingContext()
 
+    if 'claude' in context.model:
+        return ClaudeModel()
+    
     """default"""
     return GptModel()

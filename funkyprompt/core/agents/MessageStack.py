@@ -4,6 +4,7 @@ from funkyprompt.core import AbstractModel, AbstractEntity
 import datetime
 import json
 from funkyprompt.core.agents import CallingContext
+from funkyprompt import LanguageModelProvider
 from pydantic._internal._model_construction import ModelMetaclass
 
 class Message(BaseModel):
@@ -17,10 +18,11 @@ class Message(BaseModel):
 class UserMessage(Message):
     role: str = "user"
 
-
 class SystemMessage(Message):
     role: str = "system"
 
+class AssistantMessage(Message):
+    role: str = "assistant"
 
 class MessageStack(BaseModel):
     """
@@ -55,7 +57,7 @@ class MessageStack(BaseModel):
         default_factory=list,
     )
 
-    language_model_provider: typing.Optional[str] = Field(
+    language_model_provider: typing.Optional[LanguageModelProvider] = Field(
         description="The model provider can affect the serialization", default=None
     )
 
@@ -105,9 +107,14 @@ class MessageStack(BaseModel):
                 """this is added because sometimes it seems to need this nudge (TODO:)"""
                 messages.append(
                     UserMessage(
-                        content=f"""You can use the following functions by default {function_names} and in some cases you may be able to search and load others. 
-                        If you encounter a new function by name that you do not have, you can always ask for it to be activated and you
-                        should do that without asking the user, calling it where possible."""
+                        content=f"""Using the following functions by default {function_names} and in some cases expect to be able to search and load others. 
+                        On encountering a new function by name it can be activated without asking the user, calling it where possible."""
+                    )
+                )
+                """the alternating pattern of user and assistant as done to respect claude"""
+                messages.append(
+                    AssistantMessage(
+                        content=f"""I acknowledge the functions that are ready for use and will activate or search for others that i need"""
                     )
                 )
 
@@ -143,6 +150,10 @@ class MessageStack(BaseModel):
     def add_user_message(cls, data: str | dict):
         """add string or dict content as system message"""
         return cls.add(UserMessage(content=data))
+    
+    def add_assistant_message(cls, data: str | dict):
+        """add string or dict content as system message"""
+        return cls.add(AssistantMessage(content=data))
 
     @classmethod
     def structure_question(
@@ -194,7 +205,7 @@ class MessageStack(BaseModel):
             data = data.model_dump()
 
         return Message(
-            role="function",
+            role="user",
             name=f"{str(name)}",
             content=json.dumps(
                 {
@@ -220,7 +231,7 @@ class MessageStack(BaseModel):
         Returns: formatted error messages for agent as a dict
         """
         return Message(
-            role="system",
+            role="user",
             name=f"{str(name.replace('.','_'))}",
             content=f"""You have called the function incorrectly - try again {ex}""",
         )
@@ -239,7 +250,7 @@ class MessageStack(BaseModel):
         """
 
         return Message(
-            role="system",
+            role="user",
             name=f"{str(name.replace('.','_'))}",
             content=f"""This function failed - you should try different arguments or a different function. - {ex}. 
 If no data are found you must search for another function if you can to answer the users question. 

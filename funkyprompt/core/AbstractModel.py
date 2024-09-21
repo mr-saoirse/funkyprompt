@@ -358,7 +358,7 @@ class AbstractModel(BaseModel):
             injected_data = cls._get_prompting_data()
         #  todo include functions in the markdown - expected these are "external" functions i.e. API calls
         
-        return f"""{get_markdown_description()  }
+        return f"""{get_markdown_description(cls)  }
 
 {injected_data}
     """
@@ -531,6 +531,7 @@ class AbstractEntity(AbstractModel):
     @model_validator(mode="before")
     @classmethod
     def _id(cls, values):
+        
         """"""
         from funkyprompt.core.utils.parsing import json_loads
         if not values.get("id"):

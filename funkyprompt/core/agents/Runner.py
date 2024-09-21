@@ -199,19 +199,20 @@ class Runner:
             question=question,
             current_date=utils.dates.now(),
             function_names=self.functions.keys(),
-            language_model_provider=context.model,
+            language_model_provider=lm_client.get_provider(),
         )
-
+        
+        print('using model', lm_client.get_provider())
+     
         """run the agent loop to completion"""
         for _ in range(limit or context.max_iterations):
             response = None
-            function_descriptions = [f.to_json_spec() for f in self.functions.values()]
-            """call the model with messages and function + our system context"""
             response = lm_client(
-                messages=self.messages.model_dump(),
+                messages=self.messages,
                 context=context,
-                functions=function_descriptions,
+                functions=list(self.functions.values()),
             )
+            #internally the claude may do some ACK in the response (messages) before adding function call
             if isinstance(response, FunctionCall):
                 """call one or more functions and update messages"""
                 self.invoke(response)

@@ -1,0 +1,58 @@
+{
+    "id": "check_diary_and_generate_tasks",
+    "name": "Check Diary and Generate Tasks",
+    "plan_description": "This plan involves checking the diary for entries, analyzing the content to generate tasks, and saving the new tasks.",
+    "functions": [],
+    "depends": [
+        {
+            "id": "search_diary_entries",
+            "name": "Search Diary Entries",
+            "plan_description": "Search for entries in the diary using the run_search function.",
+            "functions": [
+                {
+                    "id": "1",
+                    "name": "run_search",
+                    "bound_entity_name": "public.diary",
+                    "description": "Search the diary for entries.",
+                    "rating": 90
+                }
+            ],
+            "depends": []
+        },
+        {
+            "id": "analyze_diary_content",
+            "name": "Analyze Diary Content",
+            "plan_description": "Analyze the diary content to identify potential tasks.",
+            "functions": [],
+            "depends": [
+                "search_diary_entries"
+            ]
+        },
+        {
+            "id": "generate_tasks",
+            "name": "Generate Tasks",
+            "plan_description": "Generate tasks based on the analysis of the diary content.",
+            "functions": [],
+            "depends": [
+                "analyze_diary_content"
+            ]
+        },
+        {
+            "id": "save_new_tasks",
+            "name": "Save New Tasks",
+            "plan_description": "Save the newly generated tasks using the save_entity function.",
+            "functions": [
+                {
+                    "id": "2",
+                    "name": "save_entity",
+                    "bound_entity_name": "public.task",
+                    "description": "Save the new tasks into the task management system.",
+                    "rating": 85
+                }
+            ],
+            "depends": [
+                "generate_tasks"
+            ]
+        }
+    ]
+}

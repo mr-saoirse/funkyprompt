@@ -1,10 +1,10 @@
 from enum import Enum
 
 
-class LanguageModelProviders(Enum):
+class LanguageModelProvider(Enum):
 
     openai = "openai"
-
+    anthropic = "anthropic"
 
 import typing
 from funkyprompt.core.agents import CallingContext

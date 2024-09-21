@@ -1,0 +1,121 @@
+{
+    "id": "diary_task_generation_plan",
+    "name": "Check Diary and Generate Tasks",
+    "username": "user@example.com",
+    "plan_description": "This plan will first search the diary for recent entries, summarize the content, and then generate and save new tasks based on the diary information.",
+    "questions": [
+        "What is in my diary?",
+        "What new tasks can be generated based on my diary entries?"
+    ],
+    "functions": [
+        {
+            "id": "search_diary",
+            "name": "public.diary.run_search",
+            "bound_entity_name": "public.diary",
+            "description": "Search the diary for recent entries",
+            "rating": 90
+        },
+        {
+            "id": "summarize_diary",
+            "name": "public.summary.upsert_entity",
+            "bound_entity_name": "public.summary",
+            "description": "Create a summary of the diary entries",
+            "rating": 85
+        },
+        {
+            "id": "generate_tasks",
+            "name": "public.task_idea_summary.upsert_entity",
+            "bound_entity_name": "public.task_idea_summary",
+            "description": "Generate task ideas based on the diary summary",
+            "rating": 95
+        },
+        {
+            "id": "save_tasks",
+            "name": "public.task.add",
+            "bound_entity_name": "public.task",
+            "description": "Save the generated tasks",
+            "rating": 100
+        }
+    ],
+    "depends": [
+        {
+            "id": "search_diary_step",
+            "name": "Search Diary Entries",
+            "plan_description": "Search the diary for recent entries to get an overview of current activities and thoughts.",
+            "functions": [
+                {
+                    "id": "search_diary",
+                    "name": "public.diary.run_search",
+                    "bound_entity_name": "public.diary",
+                    "description": "Search the diary for recent entries",
+                    "rating": 90
+                }
+            ],
+            "extra_arguments": {
+                "questions": [
+                    "What are my recent diary entries?"
+                ],
+                "limit": 10
+            }
+        },
+        {
+            "id": "summarize_diary_step",
+            "name": "Summarize Diary Entries",
+            "plan_description": "Create a summary of the diary entries to extract key information.",
+            "functions": [
+                {
+                    "id": "summarize_diary",
+                    "name": "public.summary.upsert_entity",
+                    "bound_entity_name": "public.summary",
+                    "description": "Create a summary of the diary entries",
+                    "rating": 85
+                }
+            ],
+            "depends": [
+                "search_diary_step"
+            ],
+            "extra_arguments": {
+                "name": "recent_diary_summary",
+                "content": "Summary of recent diary entries"
+            }
+        },
+        {
+            "id": "generate_tasks_step",
+            "name": "Generate Task Ideas",
+            "plan_description": "Generate task ideas based on the diary summary, considering the user's interests and goals.",
+            "functions": [
+                {
+                    "id": "generate_tasks",
+                    "name": "public.task_idea_summary.upsert_entity",
+                    "bound_entity_name": "public.task_idea_summary",
+                    "description": "Generate task ideas based on the diary summary",
+                    "rating": 95
+                }
+            ],
+            "depends": [
+                "summarize_diary_step"
+            ],
+            "extra_arguments": {
+                "name": "diary_based_task_ideas",
+                "content": "Task ideas generated from diary entries"
+            }
+        },
+        {
+            "id": "save_tasks_step",
+            "name": "Save Generated Tasks",
+            "plan_description": "Save the generated tasks to the task management system.",
+            "functions": [
+                {
+                    "id": "save_tasks",
+                    "name": "public.task.add",
+                    "bound_entity_name": "public.task",
+                    "description": "Save the generated tasks",
+                    "rating": 100
+                }
+            ],
+            "depends": [
+                "generate_tasks_step"
+            ]
+        }
+    ]
+}
