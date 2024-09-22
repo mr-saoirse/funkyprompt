@@ -240,6 +240,16 @@ class Function(AbstractEntity):
         if model_provider == LanguageModelProvider.anthropic:
             #this is one difference of the function spec 
             parameters_name = 'input_schema'
+            
+        if model_provider == LanguageModelProvider.cerebras:
+             return { 
+                "type": "function",
+                "function": {
+                    "name": name,
+                    "description": cls.description[:MAX_FUNCTION_DESCRIPTION_LENGTH],
+                    parameters_name:  { "properties": props},
+                }
+             }
         
         """anthropic, openai"""
         return {

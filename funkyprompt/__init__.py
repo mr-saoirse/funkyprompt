@@ -7,7 +7,8 @@ class LanguageModelProvider(Enum):
     anthropic = "anthropic"
     google = "google"
     meta = "meta"
-
+    cerebras = "cerebras"
+    
 import typing
 from funkyprompt.core.agents import CallingContext
 from funkyprompt.core import AbstractModel

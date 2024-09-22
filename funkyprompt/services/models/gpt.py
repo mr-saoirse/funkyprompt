@@ -17,6 +17,9 @@ def _get_function_call_or_stream(
     """
     This is a little bit opaque as it tries to abstract
     function calling and non-function calling for both streaming modes
+    
+
+        
     """
 
     def function_builder(function_call, response):

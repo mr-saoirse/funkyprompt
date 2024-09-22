@@ -210,7 +210,7 @@ class MessageStack(BaseModel):
             content=json.dumps(
                 {
                     # do we need to be this paranoid most of the time?? this is a good label to point later stages to the results
-                    "about-these-data": "here are some data that may or may not contain the answer to your question - please review it carefully",
+                    "about-these-data": f"You called the tool or function `{name}` and here are some data that may or may not contain the answer to your question - please review it carefully",
                     "data": data,
                 },
                 default=str,
