@@ -61,7 +61,7 @@ class Runner:
         self._function_manager.add_function(self.activate_functions_by_name)
         """more complex things will happen from here when we traverse what comes back"""
         
-        """weather we should but this crud here remains to be seen - it could be a property of the model instead"""
+        """weather we should put this crud here remains to be seen - it could be a property of the model instead"""
         self._function_manager.add_function(self.save_entity)
         
     
@@ -210,7 +210,6 @@ class Runner:
                 context=context,
                 functions=list(self.functions.values()),
             )
-            #internally the claude may do some ACK in the response (messages) before adding function call
             if isinstance(response, FunctionCall):
                 """call one or more functions and update messages"""
                 self.invoke(response)
