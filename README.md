@@ -20,12 +20,14 @@ Object Orientated Generation observes three things;
 2. Fields with descriptions that manage structured output as well as additional prompting in data-rich systems
 3. Class methods or auxillary API methods defined for the type for use in function calling
 
-It is important to recognise that you do not need anything else to build agentic systems over large language model APIs. By combing such objects with the two stacks (function and message), this creates a computationally complete framework.
+It is important to recognize that you do not need anything else to build agentic systems over large language model APIs. By combing such objects with the two managed stacks (function and message), this creates a computationally complete framework.
 
 Here is a trivially simple example object (agent)...
 
 ```python
 from pydantic import Field
+from funkyprompt.core.agents import Runner, Plan, CallingContext, AbstractModel
+from IPython.display import Markdown
 
 class TestObject(AbstractModel):
     """You are a simple agent that answers the users question with the help of functions. 
@@ -74,7 +76,7 @@ Markdown(agent("Tell me about henrik",
      ))
 ```
 
-This example illustrates that Agents are always described as Pydantic objects including holding callable functions. Not shown here, the configuration can add references to external functions i.e. OpenAPI endpoints. A lot of emphasis is put on treating the Markdown representation as the primary representation of the agent. This allows for portability because markdown agents can be described in a database or web server and when run on clients it is still possible to run functions etc. 
+This example illustrates that Agents are always described as Pydantic objects including holding callable functions. Not shown here, the configuration can add references to external functions i.e. OpenAPI endpoints. Although this shows the Pydantic object, a lot of emphasis is put on treating the Markdown representation as the primary representation of the agent. This allows for portability because markdown agents can be described in a database or web server and when run on clients it is still possible to run functions etc. You can get the Markdown representation with `TestObject.get_model_description()`
 
 ## Installation
 
