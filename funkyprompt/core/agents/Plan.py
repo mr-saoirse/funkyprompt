@@ -54,7 +54,7 @@ def expand_refs(
     return node
 
 
-PLANNING_PROMPT = f"""Below is a schema for building a plan allowing you to generate a JSON DAG structure for the plan.
+PLANNING_PROMPT = f"""Below is a schema for building a plan allowing you to generate a JSON DAG tree structure. The Tree should have a single Plan root (gemini). 
 
 I would like you to consider the functions provided and build a plan to solve the task.
 
@@ -77,7 +77,7 @@ class PlanFunctions(AbstractModel):
         description="fully qualified function name e.g. <namespace>.<name>"
     )
     bound_entity_name:str = Field(default=None,
-        description="functions are discovered on entities and the entity name is required"
+        description="functions are discovered on entities and the entity name is required. For external API functions this can be the domain or api prefix."
     )
     description: str = Field(default=None,
         description="a description of the function preferably with the current context taken into account e.g. provide good example parameters"
@@ -169,8 +169,6 @@ class Plan(AbstractEntity):
         Args:
             questions (str | typing.List[str]): one or more questions - more is better
 
-        Returns:
-            typing.List[dict]: a list of functions and their descriptions
         """
         from funkyprompt.services import entity_store
         from funkyprompt.core.functions import Function

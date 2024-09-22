@@ -201,9 +201,7 @@ class Runner:
             function_names=self.functions.keys(),
             language_model_provider=lm_client.get_provider(),
         )
-        
-        print('using model', lm_client.get_provider())
-     
+             
         """run the agent loop to completion"""
         for _ in range(limit or context.max_iterations):
             response = None

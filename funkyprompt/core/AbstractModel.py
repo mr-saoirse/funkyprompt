@@ -566,7 +566,13 @@ class AbstractEntity(AbstractModel):
     
  
 
-    def save(cls):
+    def save(cls, context:str=None):
+        """
+        A save method on the entity
+        
+        Args:
+            context: add context
+        """
         from funkyprompt.services import entity_store
          
         return entity_store(cls).update_records(cls)

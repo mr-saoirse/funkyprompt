@@ -5,6 +5,8 @@ class LanguageModelProvider(Enum):
 
     openai = "openai"
     anthropic = "anthropic"
+    google = "google"
+    meta = "meta"
 
 import typing
 from funkyprompt.core.agents import CallingContext

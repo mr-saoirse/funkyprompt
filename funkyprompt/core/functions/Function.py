@@ -47,6 +47,7 @@ class FunctionParameter(BaseModel):
     is_required: bool = True
     description: str = Field(description="The parameter description")
     type: str = Field(description="The json schema type of the parameter")
+    items: typing.Optional[dict] = None
     enum_options: typing.Optional[typing.List[str]] = Field(
         description="enums can provide option hints", default_factory=list
     )
@@ -66,8 +67,15 @@ class FunctionParameter(BaseModel):
         data = dict(vars(type_info))
         data["type"] = core_types.PYTHON_TO_JSON_MAP.get(data["type"], "object")
         if type_info.is_list:
-            data["type"] = "list"
-
+            data["type"] = "array"
+            
+            """TODO break down and test generic arrays"""
+            data['items'] = {
+                "oneOf": [
+                    {"type": "string"}
+                ]
+            }
+    
         data["description"] = f"{description}"
         return FunctionParameter(**data)
 
@@ -77,9 +85,36 @@ class FunctionParameter(BaseModel):
         https://cookbook.openai.com/examples/how_to_call_functions_with_chat_models
         """
         d = {"type": cls.type, "description": cls.description}
+        """for array types"""
+        if cls.items:
+            d['items'] = cls.items
         if cls.enum_options:
             d["enums"] = cls.enum_options
-        return {cls.name: d}
+        return d
+    
+    def to_google_json_spec(cls, **kwargs):
+        """google has its own way 
+        https://ai.google.dev/gemini-api/docs/function-calling/tutorial?lang=python#declare-functions-initialization
+        """
+        def google_makes_me_sad_mapper(t):
+          
+                if 'list' in str(t).lower():
+                    return "ARRAY"
+                return {
+                    #"object": "OBJECT",
+                    "object": "STRING", #something annoying about what its asking me to do for dicts TODO: try and get this type of thing to work.
+                    'int': "INTEGER",
+                    'float': 'NUMBER',
+                    'decimal' : 'NUMBER',
+                    'double': 'NUMBER',
+                    'boolean': 'BOOLEAN'
+                    }.get(t, 'STRING')
+            
+        d = {"type_": google_makes_me_sad_mapper(cls.type), "description": cls.description}
+     
+        if cls.enum_options:
+            d["enums"] = cls.enum_options
+        return d            
 
 
 class FunctionMetadataParser(BaseModel):
@@ -184,20 +219,33 @@ class Function(AbstractEntity):
         """
 
         """parameters - a map of stff"""
-        props = {p.name: p.to_json_spec(**kwargs) for p in cls.parameters}
+        
+        
         """body - we parse the name but this must marry up with what we use elsewhere"""
         name = re.sub(REGEX_ALLOW_FUNCTION_NAMES, "", cls.name)
         parameters_name = 'parameters'
+        if model_provider == LanguageModelProvider.google:
+            props = {p.name: p.to_google_json_spec(**kwargs) for p in cls.parameters}
+            return  {
+                'function_declarations': [  
+                    {  "name": name,  
+                       "description": cls.description[:MAX_FUNCTION_DESCRIPTION_LENGTH],  
+                       parameters_name:  { 'type_': 'OBJECT', "properties": props}  } 
+                    #TODO  required fields
+                    ]
+            }
+        
+        props = {p.name: p.to_json_spec(**kwargs) for p in cls.parameters}
+            
         if model_provider == LanguageModelProvider.anthropic:
             #this is one difference of the function spec 
             parameters_name = 'input_schema'
+        
+        """anthropic, openai"""
         return {
-            # "type": "function",
-            # "function": {
             "name": name,
             "description": cls.description[:MAX_FUNCTION_DESCRIPTION_LENGTH],
-            parameters_name: {"type": "object", "properties": props},
-            # },
+            parameters_name:  {"type": "object", "properties": props},
         }
 
     @classmethod

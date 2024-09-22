@@ -1,0 +1,61 @@
+{
+    "id": "434310f6-09a9-4156-94c6-37191f24993c",
+    "name": "Check_Diary_and_Generate_Tasks",
+    "username": null,
+    "graph_paths": null,
+    "plan_description": "This plan outlines how to check the contents of your diary and generate new tasks based on its entries.\n\n**Stage 1: Check Diary Contents**\n\n1.  Use the `public.diary.run_search` function to search for relevant diary entries. The specific search query will depend on what you're looking for in your diary, for example you could search by a date, keyword or topic.\n\n**Stage 2: Summarize and Analyze Diary Entries (Optional)**\n\n1. (Optional) if the entries are long or complex, you can call a summarize function if available, otherwise we will rely on the LLM to extract the tasks.\n\n**Stage 3: Generate Tasks from Diary Entries**\n\n1. Based on the content of the diary entries, identify potential tasks. You can either manually extract them by reading, or use an LLM to prompt for tasks and ideas.\n2. For each potential task, create a task object. This could involve defining the task name, description, project (if applicable), due date, etc. See the schema for public.task for more details.\n\n**Stage 4: Save Tasks**\n\n1. Use the `public.task.add` function to save each generated task to your task list.\n\nThis plan assumes that functions like `public.diary.run_search` and `public.task.add` are available. If they're not, you'll need to activate or search for them before executing the plan.",
+    "questions": null,
+    "extra_arguments": null,
+    "functions": [],
+    "depends": [
+      {
+        "id": "f8f2359e-03f4-4905-9417-6409594a139f",
+        "name": "Check_Diary_Contents",
+        "username": null,
+        "graph_paths": null,
+        "plan_description": "This stage focuses on checking the contents of the diary. ",
+        "questions": "What is in my diary?",
+        "extra_arguments": null,
+        "functions": [
+          {
+            "id": null,
+            "name": "public.diary.run_search",
+            "bound_entity_name": "public.diary",
+            "description": "search the entity using the default store\n\n        Args:\n            questions (str | typing.List[str]): ask one or more questions - the more the better\n            limit (int, optional): provide an optional search limit. Defaults to None.\n        ",
+            "rating": null
+          }
+        ],
+        "depends": []
+      },
+      {
+        "id": "18e988e6-5b75-4434-b359-4235b7a52878",
+        "name": "Generate_Tasks",
+        "username": null,
+        "graph_paths": null,
+        "plan_description": "This stage focuses on generating tasks from the diary entries. ",
+        "questions": "Given the diary entries, generate tasks that align with my overall goals and projects if applicable",
+        "extra_arguments": null,
+        "functions": [],
+        "depends": []
+      },
+      {
+        "id": "a609c969-404b-435d-b80c-062f96764931",
+        "name": "Save_Tasks",
+        "username": null,
+        "graph_paths": null,
+        "plan_description": "This stage focuses on saving the generated tasks. ",
+        "questions": "Save the generated tasks",
+        "extra_arguments": null,
+        "functions": [
+          {
+            "id": null,
+            "name": "public.task.add",
+            "bound_entity_name": "public.task",
+            "description": "Save or update a task based on its task name as key\n\n        #task model\n\n        ```python\n        class Task(BaseModel):\n            name: str\n            description: str\n            project: Optional[str] = None\n            labels: Optional[list[str]] = []\n            target_completion: Optional[datetime]\n        ```\n\n        Args:\n            task: The task object to add\n        ",
+            "rating": null
+          }
+        ],
+        "depends": []
+      }
+    ]
+  }

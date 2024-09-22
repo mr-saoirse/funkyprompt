@@ -105,14 +105,14 @@ class ClaudeModel(LanguageModelBase):
         """
         client = anthropic.Anthropic()
         response = client.messages.create(
-            model=model,
+            model=context.model,
             max_tokens=max_tokens,
             system=dump_messages_for_anthropic(messages,is_system=True),
             tools=[f.to_json_spec(model_provider=LanguageModelProvider.anthropic) for f in functions] if functions else None,
             messages=dump_messages_for_anthropic(messages)
         )
         
-        print(response)
+        #print(response)
         
         cls.response_buffer = []
         response = _get_function_call_or_stream(

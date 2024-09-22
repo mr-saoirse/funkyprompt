@@ -5,18 +5,118 @@
 # gemini-1.5-flash: our fastest multi-modal model
 # gemini-1.5-pro: our most capable and intelligent multi-modal model
 
+ 
+import typing
+from funkyprompt.core.agents import CallingContext
+from funkyprompt.core.functions import FunctionCall
+from funkyprompt.core.agents import MessageStack, Function
+import json
+from . import LanguageModelBase
+from funkyprompt import LanguageModelProvider
 import google.generativeai as genai
 
-# model = genai.GenerativeModel('gemini-1.5-flash')
-# response = model.generate_content("What is the meaning of life?", stream=True)
+#gemini-1.5-flash
+model = "gemini-1.5-pro-exp-0827"
 
-# messages = [
-#     {'role':'user',
-#      'parts': ["Briefly explain how a computer works to a young child."]}
-# ]
-# response = model.generate_content(messages)
+def _get_function_call_or_stream(
+    response, message_stack:MessageStack, callback=None, response_buffer=None, token_callback_action=None
+):
+    """
+    not implementing streaming yet
+    """
+    part = response.candidates[0].content.parts[0]
+    
+    if f := part.function_call:
+        return FunctionCall(name=f.name, arguments=f.args )
+         
+    """is this the alternative"""
+    return response.text
+
+            
+
+def dump_messages_for_gemini(message_stack: MessageStack, is_system: bool=False):
+    """
+    gemini https://github.com/google-gemini/cookbook/blob/main/quickstarts/Function_calling.ipynb
+    
+    """
+    
+    if is_system:
+        return "\n\n".join([m.content for m in message_stack.messages if m.role == 'system'])
+        
+    data = []
+    for m in message_stack.messages:
+        if m.role == 'system':
+            """system messages are not use in the dialogue of gemini"""
+            continue
+        elif m.role == 'function_call':
+            """what is a function call in open ai is a user message with a tool result for gemini"""
+            data.append({  'role': 'user', 'parts': [m.content]}  )
+        elif m.role == 'assistant':
+            data.append({  'role': 'model', 'parts': [m.content]}  )
+        else:
+            data.append({  'role': m.role, 'parts': [m.content]}  )
+ 
+    return data
+
+def unbind(f):
+    from functools import partial
+    s = f.__self__
+    f = f.__func__
+    return partial(f,s)
 
 
-# model = genai.GenerativeModel('gemini-1.5-flash',
-#                               # Set the `response_mime_type` to output JSON
-#                               generation_config={"response_mime_type": "application/json"})
+class GeminiModel(LanguageModelBase):
+
+    @classmethod
+    def get_provider(cls):
+        return LanguageModelProvider.google
+        
+    def get_function_call_or_stream(
+        self,
+        response: typing.Any,
+        callback: typing.Optional[typing.Callable] = None,
+        response_buffer: typing.List[typing.Any] = None,
+        token_callback_action: typing.Optional[typing.Callable] = None,
+    ):
+        return _get_function_call_or_stream(
+            response=response,
+            callback=callback,
+            response_buffer=response_buffer,
+            token_callback_action=token_callback_action,
+        )
+
+    def run(
+        cls,
+        messages: MessageStack,
+        context: CallingContext,
+        functions: typing.Optional[typing.List[Function]] = None,
+        **kwargs
+    ):
+        """The run entry point for the agent model
+        - calls the api
+        - manages streaming
+        - manages function calling
+        """
+        
+        """google tries to be clever and handle the python functions directly but also gives option to use json https://ai.google.dev/gemini-api/docs/function-calling/tutorial?lang=python
+        - we must wrap the json spec though
+        """
+        
+        print([f.name for f in functions])
+        model = genai.GenerativeModel(
+            model_name=context.model, tools=[genai.protos.Tool( f.to_json_spec(LanguageModelProvider.google))  for f in functions] if functions else None,
+            system_instruction=dump_messages_for_gemini(messages,is_system=True),
+        )#.start_chat(enable_automatic_function_calling=True)
+
+        response = model.generate_content(dump_messages_for_gemini(messages))
+        
+        cls.response_buffer = []
+        response = _get_function_call_or_stream(
+            response,
+            message_stack=messages,
+            callback=context.streaming_callback,
+            response_buffer=cls.response_buffer,
+            # token_callback_action=None,
+        )
+
+        return response

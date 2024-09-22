@@ -36,6 +36,7 @@ class LanguageModelBase:
 
 from .gpt import GptModel
 from .claude import ClaudeModel
+from .gemini import GeminiModel
 
 def language_model_client_from_context(
     context: CallingContext = None, with_retries: int = 0
@@ -56,6 +57,9 @@ def language_model_client_from_context(
 
     if 'claude' in context.model:
         return ClaudeModel()
+    
+    if 'gemini' in context.model:
+        return GeminiModel()
     
     """default"""
     return GptModel()
