@@ -1,25 +1,24 @@
 # Welcome
 
-Welcome to `funkyprompt`. This is a lightweight library for building agent systems by the principle of _Object Orientated Generation_ (OOG).
-This is a simple idea that says that we only need to focus on objects to build agentic systems. The foal of funkyprompt is _to enable seamless development of data rich agentic systems_.
+Welcome to `funkyprompt`. This is a lightweight library for building large language model based agent systems by the principle of _Object Orientated Generation_ (OOG).
+This is a simple idea that says that we only need to focus on objects to build agentic systems. The foal of funkyprompt is _to enable seamless development of data rich agentic systems_.  
 
 
 There are actually only two abstractions that are important for working with large language models.
 
-1. The messages stack, a collection of messages with specific roles. The system message may be considered special in some models
-2. The function stack, a list of functions often described in a Json Schema, that can be called by the language model
+1. The **message stack**, a collection of messages with specific _roles_. The _system_ role may be considered special in some models/apis
+2. The **function stack**, a list of functions often described in a Json Schema, that can be called by the language model
 
-In `funkyprompt` both of these stacks are always treated as dynamic inside a Runner's execution loop. 
+In `funkyprompt` both of these stacks are always treated as _dynamic_ inside a Runner's _execution loop_. 
 Reasoning is carried out by starting with a system prompt (always rendered as clean Markdown) and following the trail of function calls until completion. It should be possible to activate and recruit new functions during the execution loop.
 
 Objects are represents by Pydantic or Markdown and their is an invertible mapping between these two representations. 
 
-OOG observes three things;
+Object Orientated Generation observes three things;
 
-1. Top level metadata or doc string for the system level prompt
-2. Fields with descriptions that managed structured output
-3. Class methods or auxillary API methods defined for the type
-
+1. Top level metadata or doc string on the Pydantic object for the _system level_ prompt
+2. Fields with descriptions that managed structured output as well as additional prompting in data rich systems
+3. Class methods or auxillary API methods defined for the type for use in function calling
 
 Here is a trivially simple example object (agent)...
 
@@ -100,8 +99,8 @@ Funkyprompt leads heavily on semantic modelling in Pydantic. The data layer is i
 
 There are a number of important AIDA principles
 
-1. The first is the semantic layer. This is actually the same AS OOG since your entire system is described semantically by a system of OOG agents. Each of these agents defined schema that can optionally allow storage. Over time its expected that many types including both structured, text, image and graph relations will build up in your system and this is the main purpose of funkyprompt - to enable data rich agentic systems seamlessly. 
-2. Query routing is the other important part of AIDA. Mixing graph, key-value, structured and unstructured data creates a need to make the right choice for the right user problem as to what types of queries to rely on. Funkyprompt "indexes" data in different ways i.e. adding embeddings or graph relationships to support different query types in context.
+1. The first is the **semantic layer**. This is actually the same AS OOG since your entire system is described semantically by a system of OOG agents. Each of these agents defined schema that can optionally allow storage. Over time its expected that many types including both structured, text, image and graph relations will build up in your system and this is the main purpose of funkyprompt - to enable data rich agentic systems seamlessly. 
+2. **Query routing** is the other important part of AIDA. Mixing graph, key-value, structured and unstructured data creates a need to make the right choice for the right user problem as to what types of queries to rely on. Funkyprompt "**indexes**" data in different ways i.e. adding embeddings or graph relationships to support different query types in context.
 
 
 ### Embedded
