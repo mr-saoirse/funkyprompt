@@ -1,32 +1,34 @@
 # Welcome
 
-Welcome to funkyprompt. This is a lightweight library for building agent systems by the principle of _Object Orientated Generation_.
+Welcome to `funkyprompt`. This is a lightweight library for building agent systems by the principle of _Object Orientated Generation_ (OOG).
 This is a simple idea that says that we only need to focus on objects to build agentic systems. 
 
 There are actually only two abstractions that are important for working with large language models.
 
 1. The messages stack, a collection of messages with specific roles. The system message may be considered special in some models
-2. The function stack, a list of functions often descripted in Json Schema, that can be called.
+2. The function stack, a list of functions often described in a Json Schema, that can be called by the language model
 
-In funkyprompt both of these stacks are always treated as dynamic inside a Runner's execution loop. 
-Reasoning is carried out by starting with a system prompt that is always rendered as clean Markdown and then following the trail of function calls until completion. It should be possible to activate and recruit new functions during the execution loop.
+In `funkyprompt` both of these stacks are always treated as dynamic inside a Runner's execution loop. 
+Reasoning is carried out by starting with a system prompt (always rendered as clean Markdown) and following the trail of function calls until completion. It should be possible to activate and recruit new functions during the execution loop.
 
-Objects are represents by Pydantic or Markdown and their is invertible mapping between these two representations. OOG requires three things;
+Objects are represents by Pydantic or Markdown and their is an invertible mapping between these two representations. 
 
-- Top level metadata or doc string for the system level prompt
-- Fields with descriptions that managed structured output
-- Class methods or auxillary API methods defined for the type
+OOG observes three things;
+
+1. Top level metadata or doc string for the system level prompt
+2. Fields with descriptions that managed structured output
+3. Class methods or auxillary API methods defined for the type
 
 
-Here is a trivially simple example
+Here is a trivially simple example object (agent)...
 
 ```python
 from pydantic import Field
 
 class TestObject(AbstractModel):
     """You are a simple agent that answers the users question with the help of functions. 
-    
-Please respond in a structured format with fenced json. Using the response format provided"""
+Please respond in a structured format with fenced json. Using the response format provided
+"""
              
     person: str = Field(description="A person that is of interest to the user")
     color: str = Field(description="A color that the person likes")
