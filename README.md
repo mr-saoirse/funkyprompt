@@ -4,7 +4,7 @@ Welcome to `funkyprompt`. This is a lightweight library for building large langu
 This is a simple idea that says that we only need to focus on objects to build agentic systems. The goal of `funkyprompt` is _to enable seamless development of data-rich agentic systems_.  
 
 
-There are actually only two abstractions that are important for working with large language models apis;
+There are actually only two abstractions that are important for working with large language model APIs;
 
 1. The **message stack**, a collection of messages with specific _roles_. The _system_ role may be considered special in some models/apis
 2. The **function stack**, a list of functions often described in a Json Schema, that can be called by the language model
@@ -12,13 +12,15 @@ There are actually only two abstractions that are important for working with lar
 In `funkyprompt` both of these stacks are always treated as _dynamic_ inside a Runner's _execution loop_. 
 Reasoning is carried out by starting with a system prompt (always rendered as clean Markdown) and following the trail of function calls until completion. It should be possible to activate and recruit new functions during the execution loop.
 
-Objects are represents by Pydantic or Markdown and their is an invertible mapping between these two representations. 
+Objects are represents by Pydantic or Markdown and there is an invertible mapping between these two representations. 
 
 Object Orientated Generation observes three things;
 
 1. Top level metadata or doc string on the Pydantic object for the _system level_ prompt
 2. Fields with descriptions that manage structured output as well as additional prompting in data-rich systems
 3. Class methods or auxillary API methods defined for the type for use in function calling
+
+It is important to recognise that you do not need anything else to build agentic systems over large language model APIs. By combing such objects with the two stacks (function and message), this creates a computationally complete framework.
 
 Here is a trivially simple example object (agent)...
 
