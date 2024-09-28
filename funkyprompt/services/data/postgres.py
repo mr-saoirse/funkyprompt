@@ -307,7 +307,7 @@ class PostgresService(DataServiceBase):
         return entity
 
     @classmethod
-    def get_nodes_by_name(cls, name: str, default_model: None) -> typing.List[AbstractEntity]:
+    def get_nodes_by_name(cls, name: str, default_model: AbstractEntity = None) -> typing.List[AbstractEntity]:
         """the node mode is only useful when we are invariant to types,
         because we can resolve nodes even when we dont know their type.
         Suppose an LLM knows that something _is_ an entity but does not know what it is
@@ -319,6 +319,8 @@ class PostgresService(DataServiceBase):
         - cached types in the instance
         - async parallel search over nodes
         """
+        
+        
 
         cypher_query = f"""MATCH (v {{name:'{name}'}}) RETURN v"""
         data = cls(AbstractEntity).query_graph(cypher_query)

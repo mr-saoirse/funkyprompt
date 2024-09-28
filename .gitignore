@@ -167,4 +167,4 @@ todo.txt
 .vscode
 *.parquet
 *.ipynb
-.scrapbooks
+scrapbooks/

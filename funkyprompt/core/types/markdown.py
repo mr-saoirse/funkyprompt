@@ -82,7 +82,8 @@ class MarkdownAgent(BaseModel):
         q = f"""
         I will supply you with an openapi json for an API {openapi_spec_uri} and I will provide a list of tasks id like to be able to perform. Please provide the links to at most 7 functions that can be used in a special format.
         Construct a unique url of the form [verb:endpoint)](https://domain.com/prefix/docs#/[Tag]/operationid) for each of the links in a bulleted list.  You must use the format verb separated by colon and the name since we use this later to map the function.
-
+        If the user provides a literal name, use it in place of the [Name Here] below, exactly as they provide it otherwise choose a suitable name
+        
         The overall output structure is shown below. Add an agent name and description, structure output types in tables and links for each of the functions used
         Do not add any additional commentary.
 
@@ -99,7 +100,7 @@ class MarkdownAgent(BaseModel):
         ---------
 
 
-        # Agent Name Here
+        # [Name Here] (based on what the user asks to call the agent or entity. Do not keep `entity` or `agent` or `manager` in the name as its assumed)
         agent description here... detail description of what the agent can do. Please write it in the format of a prompt telling the large language model what to do
 
         ## Structured Response Types

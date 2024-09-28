@@ -57,30 +57,43 @@ class Runner:
         self._function_manager.register(self.model)
         """the basic bootstrapping means asking for help, entities(types) or functions"""
         self._function_manager.add_function(self.lookup_entity)
-        self._function_manager.add_function(self.help) # :)
+        #self._function_manager.add_function(self.help) # :)
         self._function_manager.add_function(self.activate_functions_by_name)
         """more complex things will happen from here when we traverse what comes back"""
         
-        """weather we should put this crud here remains to be seen - it could be a property of the model instead"""
+        """whether we should put this crud here remains to be seen - it could be a property of the model instead"""
         self._function_manager.add_function(self.save_entity)
         
     
-    def activate_functions_by_name(self, function_name_to_entity_mapping: dict):
+    def activate_functions_by_name(self, function_name_to_entity_mapping: dict=None, **kwargs):
         """
         If you encounter a full name of a function that you don't have details for, you can activate it here.
         Once you activate it, it will be ready for use. Supply one or more function names to activate them.
+        ```
+        Example calls;
+        (1) You have an entity called Animals and a functions called get_details, supply {'get_details', 'animals'}
+        (2) You have an endpoint with a verb (and you may know the domain), supply {'verb:/function' : 'domain' | None}
+        ```
         
         Args:
-            function_name_to_entity_mapping (dict): provide a map between the entity name and the entity that the function belongs to
+            function_name_to_entity_mapping (dict): provide a map between a function name and the entity (or domain) that the function belongs to.
         """
         
         """NO-OP for now; the function manager can activate the functions - for now we are handling these cases when entities are loaded below.
            So this is just a placeholder if we want to have a more generalized registry and the idea of lazy activation to reduce cognitive load 
            - also, this function is a good way IF the agent thinks it has not got access to the function, give it something to do and then nudge it with the message below.
         """
+        
+        if not function_name_to_entity_mapping:
+            if kwargs:
+                function_name_to_entity_mapping = kwargs
+            else:
+                print('NO PARAM PASSED', kwargs)
+                raise Exception("please provide a name of functions mapped to their entity or domain. If you dont know the mapping just provide function names e.g. { 'function_name': None }")
+        
         fm = function_name_to_entity_mapping
         if not isinstance(fm,dict):
-            raise Exception("When calling this function, in `function_names` you must provide a mapping between the function and the entity it belongs e.g. {'some_function': 'namespace.entity'}")
+            raise Exception("When calling this function, in `function_names` you must provide a mapping between the function and the entity or domain it belongs e.g. {'some_function': 'namespace.entity'}")
         
         utils.logger.debug(f'activating function {fm}')
         fm = self._function_manager.add_functions_by_name(fm)
@@ -99,7 +112,7 @@ class Runner:
         from funkyprompt.services import entity_store
        
         """todo test different parameter inputs e.g. comma separated"""
-        entities =  entity_store(self.model).get_nodes_by_name(name)
+        entities =  entity_store(self.model).get_nodes_by_name(name,default_model=self.model)
         
         """register entity functions if needed and wait for the agent to ask to activate them"""
         for e in entities:
@@ -180,6 +193,7 @@ class Runner:
                     function_call.name, ex, self._context
                 )
 
+        print(data)
         """update messages with data if we can or add error messages to notify the language model"""
         self.messages.add(data)
 

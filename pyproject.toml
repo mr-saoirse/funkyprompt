@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "funkyprompt"
 version = "0.5.21"
-description = "a library for speaking with large langauge models using object orientated generation"
+description = "A library for speaking with large langauge models using object orientated generation to build data-rich agentic systems"
 authors = ["mr-saoirse <amartey@gmail.com>"]
 license = "MIT"
 readme = "README.md"
@@ -10,7 +10,6 @@ readme = "README.md"
 python = "^3.10"
 pydantic = "^2.8.2"
 docstring-parser = "^0.16"
-groq = "^0.9.0"
 anthropic = "^0.31.2"
 google-generativeai = "^0.7.2"
 typer = "^0.12.3"
@@ -18,14 +17,17 @@ psycopg2-binary = "^2.9.9"
 loguru = "^0.7.2"
 openai = "^1.37.1"
 beautifulsoup4 = "^4.12.3"
-kuzu = "^0.6.0"
-datamodel-code-generator = "^0.25.9"
 html2text = "^2024.2.26"
 markdown = "^3.7"
+boto3 = "^1.35.24"
+datamodel-code-generator = "^0.26.1"
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.4.2"
 pytest = "^8.3.1"
+groq = "^0.9.0"
+duckdb = "^1.1.0"
+kuzu = "^0.6.0"
 
 [build-system]
 requires = ["poetry-core"]

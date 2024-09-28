@@ -5,7 +5,7 @@ we dont have zip or unzip since the format of copying to an archive is supported
 
 """
 
-from funkyprompt.services.fs.s3 import S3Provider
+
 import polars as pl
 import pyarrow.dataset as ds
 from PIL import Image
@@ -14,6 +14,7 @@ import io
 import typing
 import requests
 
+from funkyprompt.services.fs.s3 import S3Provider
 
 def is_s3(uri):
     return uri[:5] == "s3://"

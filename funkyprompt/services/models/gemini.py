@@ -99,10 +99,10 @@ class GeminiModel(LanguageModelBase):
         """
         
         """google tries to be clever and handle the python functions directly but also gives option to use json https://ai.google.dev/gemini-api/docs/function-calling/tutorial?lang=python
-        - we must wrap the json spec though
+        - we must wrap the json spec though since it forces a protobug type schema syntax ???
+         - vertex api may be better to use in future since its OpenAPI spec based but it seemed easier to setup gcai with just a token (will review later)
         """
         
-        print([f.name for f in functions])
         model = genai.GenerativeModel(
             model_name=context.model, tools=[genai.protos.Tool( f.to_json_spec(LanguageModelProvider.google))  for f in functions] if functions else None,
             system_instruction=dump_messages_for_gemini(messages,is_system=True),
@@ -120,3 +120,18 @@ class GeminiModel(LanguageModelBase):
         )
 
         return response
+
+"""
+may implement the vertex approach too since the function calling seems a bit more useful
+
+import vertexai
+from vertexai.generative_models import (
+    Content, FunctionDeclaration, GenerationConfig, GenerativeModel, Part, Tool
+)
+from vertexai.preview.generative_models import (
+    AutomaticFunctionCallingResponder, GenerativeModel
+)
+
+FunctionDeclaration interfaces well with json spec compared to genai.protos.Tool
+
+"""

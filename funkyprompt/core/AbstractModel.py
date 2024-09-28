@@ -562,6 +562,7 @@ class AbstractEntity(AbstractModel):
 
         from funkyprompt.services import entity_store
 
+        print('running search for ', cls)
         return entity_store(cls).ask(questions, limit, **kwargs)
     
  

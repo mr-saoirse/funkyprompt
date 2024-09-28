@@ -108,7 +108,7 @@ class MessageStack(BaseModel):
                 messages.append(
                     UserMessage(
                         content=f"""Using the following functions by default {function_names} and in some cases expect to be able to search and load others. 
-                        On encountering a new function by name it can be activated without asking the user, calling it where possible."""
+                        On encountering a new function by name (e.g. in the list of Available Functions) it can be activated without asking the user, calling it where possible."""
                     )
                 )
                 """the alternating pattern of user and assistant as done to respect claude"""
@@ -205,7 +205,7 @@ class MessageStack(BaseModel):
             data = data.model_dump()
 
         return Message(
-            role="user",
+            role="function",
             name=f"{str(name)}",
             content=json.dumps(
                 {
@@ -231,7 +231,7 @@ class MessageStack(BaseModel):
         Returns: formatted error messages for agent as a dict
         """
         return Message(
-            role="user",
+            role="function",
             name=f"{str(name.replace('.','_'))}",
             content=f"""You have called the function incorrectly - try again {ex}""",
         )
@@ -250,7 +250,7 @@ class MessageStack(BaseModel):
         """
 
         return Message(
-            role="user",
+            role="function",
             name=f"{str(name.replace('.','_'))}",
             content=f"""This function failed - you should try different arguments or a different function. - {ex}. 
 If no data are found you must search for another function if you can to answer the users question. 

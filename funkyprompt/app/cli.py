@@ -11,7 +11,9 @@ app = typer.Typer()
 
 
 @app.command("ask")
-def ask(query: typing.Optional[str] = typer.Option(None, "--query", "-q")):
+def ask(query: typing.Optional[str] = typer.Option(None, "--query", "-q"),
+        model: typing.Optional[str] = typer.Option(None, "--model", "-m")
+        ):
     """
     run a query
     """
@@ -20,5 +22,7 @@ def ask(query: typing.Optional[str] = typer.Option(None, "--query", "-q")):
     def callback(s):
         print(s, end="")
 
-    query = query = "tell the user welcome to funkyprompt - run ask -q your question"
-    funkyprompt.ask(query, context=CallingContext(response_callback=callback))
+    query = query or "tell the user welcome to funkyprompt - run ask -q your question"
+    response = funkyprompt.ask(query, context=CallingContext(response_callback=callback))
+    
+    print(response)
