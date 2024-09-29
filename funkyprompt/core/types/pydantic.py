@@ -273,3 +273,49 @@ def pydantic_to_arrow_schema(
         schema = schema.with_metadata(metadata)
 
     return schema
+
+
+def get_type(type_str: str) -> typing.Any:
+    """typing helper"""
+
+    type_mappings = {
+        "str": str,
+        "Optional[str]": typing.Optional[str],
+        "List[str]": typing.List[str],
+        "Optional[List[str]]": typing.Optional[typing.List[str]],
+        "bool": bool,
+        "int": float,
+        "int": int,
+    }
+    """attempts to eval if not mapping"""
+    return type_mappings.get(type_str) or  eval(type_str)
+
+ 
+def get_field_annotations_from_json(json_schema:dict, parent_model:pydantic.BaseModel=None) -> typing.Dict[str, typing.Any]:
+    """provide name mapped to type and description attributes
+      types are assumed to be the python type annotations in string format for now. defaults can also be added and we should play with enums
+      
+      if a parent model is supplied we will inherit json schema extra from those properties (or you can omit the property)
+      an example is detail about content embedding
+    """
+    try:
+        field_extra_info = {}
+        if parent_model:
+            field_extra = parent_model.model_fields.items()
+            for k,v in field_extra:
+                if hasattr(v, 'json_schema_extra'):
+                    field_extra_info[k] = v.json_schema_extra
+            
+        fields: typing.Dict[str, typing.Any] = {}
+
+        for field_name, field_info in json_schema.items():
+            field_type = get_type(field_info["type"])
+            description = field_info.get("description", "")
+            default_value = field_info.get("default", None) # ..., default factory and other options here
+            """from the parent model we may have extra attributes to include but it may not always be what we want. experimental"""
+            extra_fields = field_extra_info.get(field_name) or {}
+            fields[field_name] = (field_type, pydantic.Field(default_value, description=description, **extra_fields))
+
+        return fields
+    except Exception as ex:
+        raise ValueError(f"Failing to map type annotations {json_schema=} due to {ex=}")

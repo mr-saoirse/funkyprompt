@@ -93,6 +93,20 @@ async def save_result(data: TaskResponse)->str:
     
     return Response(content=json.dumps({'detail': data.model_dump(), 'message': "we have received the details. thank you."}), status_code=200)
 
+    
+@app.get('/scrape/site', dependencies=[Depends(get_current_token)],status_code=HTTPStatus.ACCEPTED)
+async def scrape_text(uri: str)->dict:
+    """scrape text from the website to enhanced content in notes
+    provided a uri to the target web page.
+    """
+    from funkyprompt.core.utils.parsing import web
+    
+    content = web.scrape_text(uri)
+    return JSONResponse(content=json.dumps({'detail': content, 'message': "we have scraped the text provided from the uri", "uri": uri}),
+                        status_code=200)
+
+
+
 api_router = APIRouter()
 
 origins = [

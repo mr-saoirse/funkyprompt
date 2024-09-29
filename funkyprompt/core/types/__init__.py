@@ -40,8 +40,8 @@ def some_default_for_type(f):
         return "{}" if not is_nullable else None
     if match_type(f, int):
         return 0 if not is_nullable else None
-    if match_type(f, int):
-        return 0 if not is_nullable else None
+    if match_type(f, float):
+        return 0.0 if not is_nullable else None
     if match_type(f, bool):
         return False if not is_nullable else None
 

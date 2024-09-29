@@ -19,3 +19,22 @@ def test_markdown_parse():
     assert len(a.Config.functions) == 1, "Failed to parse a single function"
     
     
+
+
+def test_construction_from_markdown_complex_types():
+    """"""
+    markdown =   """# Notes\nThe 'Notes' agent is designed to manage the ingestion of notes. It can derive entities and tags as `graph_paths` and save content with backlinks for graph paths. The agent can also visit web links to gather more information when necessary.\n\n## Structured Response Types\n### Note\n| Field Name   | Type                | Description                                      |\n|--------------|---------------------|--------------------------------------------------|\n| name         | str                 | The name of the note                             |\n| content      | str                 | A description of the note                        |\n| uri          | Optional[str]       | An optional web link for the note                |\n| image_uri    | Optional[str]       | An optional web link to an image or thumbnail    |\n| category     | Optional[str]       | A note category                                  |\n| rating       | float               | A rating score from 0 to 1                        |\n| graph_paths  | Optional[List[str]]           | A list of tags of the form T/C where T is a specific Tag and C is a broad category |\n\n## Available Functions\n- [get:/scrape/site](https://domain.com/prefix/docs#/Scrape/scrape_text_scrape_site_get) : This function is essential for visiting a web link to scrape text and gather more information for the notes."""
+ 
+    from funkyprompt.core import AbstractContentModel
+
+    """this type contains various python type annotations and we should test more"""
+    Notes = AbstractContentModel.create_model_from_markdown(markdown)
+
+
+
+def test_construction_from_markdown_pure_json_schema():
+    """unlike the cases above where we take python annotations in the tables, we should test other dialects
+       struct json schema fields could be represented but maybe less concisely and we could map those too
+    
+    """
+    assert 1==1, "must be going crazy"

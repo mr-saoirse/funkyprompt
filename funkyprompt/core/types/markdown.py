@@ -41,6 +41,16 @@ class SchemaTables(BaseModel):
     name: str
     rows: List[List[str]]
     
+    def to_json_schema(cls):
+        """return something like a json schema but we may use python type annotations in some case for now for types"""
+        fields = {}
+        for row in cls.rows:
+            fields[row[1]] = {
+                'type': row[2],
+                'description': row[3]
+            }
+        return {'entity': cls.name, 'fields':  fields}
+    
     
 def unfence_markdown(md_text: str) -> str:
     """
@@ -80,9 +90,12 @@ class MarkdownAgent(BaseModel):
         spec = requests.get(openapi_spec_uri)
        
         q = f"""
-        I will supply you with an openapi json for an API {openapi_spec_uri} and I will provide a list of tasks id like to be able to perform. Please provide the links to at most 7 functions that can be used in a special format.
-        Construct a unique url of the form [verb:endpoint)](https://domain.com/prefix/docs#/[Tag]/operationid) for each of the links in a bulleted list.  You must use the format verb separated by colon and the name since we use this later to map the function.
-        If the user provides a literal name, use it in place of the [Name Here] below, exactly as they provide it otherwise choose a suitable name
+        I will supply you with an openapi json for an API {openapi_spec_uri} and I will provide a list of tasks id like to be able to perform. 
+        Please provide the links essential functions that can be used in a special format but only add functions that are absolutely necessary to the task and explain WHY it is used. 
+        If the user asks for one specific function, only add one specific function. Do not guess that other functions might be useful.
+        Construct a unique url of the form [verb:endpoint)](https://domain.com/prefix/docs#/[Tag]/operationid) in a bulleted list for the essential functions. 
+        - You must use the format verb separated by colon and the name since we use this later to map the function.
+        - If the user provides a literal name, use it in place of the [Name Here] below, exactly as they provide it otherwise choose a suitable name
         
         The overall output structure is shown below. Add an agent name and description, structure output types in tables and links for each of the functions used
         Do not add any additional commentary.
@@ -106,11 +119,11 @@ class MarkdownAgent(BaseModel):
         ## Structured Response Types
         ### Type name
         output a markdown table(s) format showing the field name, types and descriptions for anything that describes the core entity being discussed. Omit if ensure of what the core entity is.
-
+        When creating types please use Python type annotations such as `Optional[List[str]]` etc.
         For example if the core purpose of the agent is to describe some entity, you could create a table showing name, description, and other attributes of the entity. If the agent is generic and not related to an entity you can omit this
 
         ## Available Functions
-        - list of functions generated as url along with a description e.g. - [name](url) : how to use it
+        - list of essential functions (only) generated as url along with a description of what the function is essential to the task e.g. - [name](url) : how to use it for the given task
         ```
 
         """ 

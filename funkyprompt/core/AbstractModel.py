@@ -197,7 +197,7 @@ class AbstractModel(BaseModel):
         return getattr(cls, cls.get_model_key_field())
 
     @classmethod
-    def create_model(cls, name: str, namespace: str = None, description:str=None, functions:typing.List[str] = None, **fields):
+    def create_model(cls, name: str, namespace: str = None, description:str=None, functions:typing.List[str] = None, fields=None):
         """
         For dynamic creation of models for the type systems
         create something that inherits from the class and add any extra fields
@@ -208,7 +208,9 @@ class AbstractModel(BaseModel):
             description: a markdown description of the model e.g. prompt with structured type tables
             functions: a list of function descriptions e.g. name, url, verb, security provider
         """
-        
+        if not fields:
+            fields = {}
+            
         namespace = namespace or cls.get_model_namespace()
         model =  create_model(name, **fields, __module__=namespace, __base__=cls)
 
@@ -225,6 +227,7 @@ class AbstractModel(BaseModel):
         The structured type in some cases could be related separately to the language model e.g. as pydantic but this approach allows for tweaking descriptions and provably works well even for complex structures
         """
         from funkyprompt.core.types.markdown import MarkdownAgent
+        from funkyprompt.core.types.pydantic import get_field_annotations_from_json
         spec = MarkdownAgent.parse_markdown_to_agent_spec(markdown )
         
         structured_types = f""
@@ -235,7 +238,10 @@ class AbstractModel(BaseModel):
             namespace_override = name.split('.')[0]
             name = name.split('.')[1]
         
+        structured_fields = None
         for stype in spec.structured_response_types:
+            """temporary because it assumes only one type"""
+            structured_fields = stype.to_json_schema().get('fields')
             structured_types+= f"### {stype.name}\n"
             structured_types += f"**field name** | **description** | **type**  \n---|---|---  \n"
             for cells in stype.rows:
@@ -253,10 +259,9 @@ class AbstractModel(BaseModel):
     ## Structured response types
     {structured_types}
             """
-        
         functions = [f.model_dump() for f in spec.function_links]
-        
-        return cls.create_model(name=name, description=desc, namespace=namespace_override, functions=functions)
+        structured_fields = get_field_annotations_from_json(structured_fields,parent_model=cls)  if structured_fields else {}
+        return cls.create_model(name=name, description=desc, namespace=namespace_override, functions=functions, fields=structured_fields)
     
     @classmethod
     def create_model_from_json(cls, data: dict):

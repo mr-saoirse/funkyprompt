@@ -1,8 +1,5 @@
 """
 The runner can call the LLM in a loop and manage the stack of messages and functions
-Function calling and streaming is handled
-Open telemetry is used to publish metrics which a collector could manage
-If this goes above 300 lines of codes we have failed - many of these lines are detailed comments.
 """
 
 from funkyprompt.core import AbstractModel
@@ -26,7 +23,7 @@ class Runner:
     The message setup is the only function that plays with natural language.
     While almost all of the "prompting" is pushed out to types and functions,
     This setup function is the one function you can play with to make sure the comms are right with the LLM.
-    For example it is here we inject plans and questions and other hints for how to run things.
+    For example it is here we inject plans (system prompt) and questions and other hints for how to run things.
     But by design, the critical guidance should be abstracted by Types and Functions.
     Beyond this, the rest is routine;
     - import type metadata and functions from the model which controls most everything
@@ -40,8 +37,7 @@ class Runner:
         A model is passed in or the default is used
         The reason why this is passed in is to supply a minimal set of functions
         If the model has no functions simple Q&A can still be exchanged with LLMs.
-        More general the model can provide a structured response format.
-        This is powerful because the model is a Pydantic annotated type but can be realized as a json response
+        More generally the model can provide a structured response format.
         """
         self.model = model or DefaultAgentCore()
         self._function_manager = FunctionManager()
@@ -57,7 +53,7 @@ class Runner:
         self._function_manager.register(self.model)
         """the basic bootstrapping means asking for help, entities(types) or functions"""
         self._function_manager.add_function(self.lookup_entity)
-        #self._function_manager.add_function(self.help) # :)
+        self._function_manager.add_function(self.help) # :)
         self._function_manager.add_function(self.activate_functions_by_name)
         """more complex things will happen from here when we traverse what comes back"""
         
@@ -193,7 +189,7 @@ class Runner:
                     function_call.name, ex, self._context
                 )
 
-        print(data)
+        #print(data) # maybe trace here
         """update messages with data if we can or add error messages to notify the language model"""
         self.messages.add(data)
 
@@ -297,9 +293,4 @@ class Runner:
         """
         P = f"please explain the following data according to your guidelines - ```{json.dumps(data)}``` and respond in a json format - use the model provided"
         return cls(P)
-        
-"""
-#TODO: general test e.g. call a function with limit=1, it doesnt loop and confirm the result and therefore we might not get behaviour expected
-generally we want to ensure consistent output    
-the response should always be JSON but revert to a simple form {response=}
-"""
+    

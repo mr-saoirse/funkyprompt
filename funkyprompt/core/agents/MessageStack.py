@@ -31,6 +31,7 @@ class MessageStack(BaseModel):
     - type prompts
     - known entities
     - smart pruning of context
+    - function patterns
     """
 
     model: AbstractModel | type = Field(
