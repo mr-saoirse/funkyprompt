@@ -379,3 +379,17 @@ WITH n, m, count(r) AS num_outgoing_links
 SET m.pagerank = reset_value + damping_factor * sum(n.pagerank / num_outgoing_links)
 RETURN m.id, m.pagerank
 ORDER BY m.pagerank DESC;"""
+
+
+
+"""examples
+
+--the case of querying things related to notes, 2 degrees of separation 
+
+SET search_path = ag_catalog, "$user", public;
+SELECT * FROM cypher('funkybrain', $$          
+ MATCH (n:public_Notes)-[r*1..2]-(m) 
+RETURN n, r, m       
+$$) as (n agtype, r agtype, m agtype)
+
+"""

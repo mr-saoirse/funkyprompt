@@ -117,7 +117,7 @@ class Runner:
         """when we return the entities, its better to return them with metadata (as opposed to just fetching the record data only)"""
         return AbstractModel.describe_models(entities)
     
-    def save_entity(self, entity:dict, structure_name: str=None):
+    def save_entity(self, entity:dict=None, structure_name: str=None, **kwargs):
         """Save entities that match the response schema given
         
         Args:
@@ -126,7 +126,10 @@ class Runner:
         """
         
         from funkyprompt.services import entity_store
-       
+        if not entity:
+            """invariance to calling styles"""
+            entity = kwargs
+            
         try:
             _ =  entity_store(self.model).update_records(self.model(**entity))
             return {'status': 'entity save'}
