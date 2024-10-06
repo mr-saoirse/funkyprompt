@@ -558,7 +558,9 @@ class AbstractEntity(AbstractModel):
     def run_search(
         cls, questions: str | typing.List[str], limit: int = None, **kwargs
     ) -> typing.List[AbstractModel]:
-        """search the entity using the default store
+        """search the entity details using the default store. If you asked general questions such as 'how many' or search or find etc,
+        you can use this search to try and find the answer to general questions. 
+        IF you dont find the answers with this search ask for help.
 
         Args:
             questions (str | typing.List[str]): ask one or more questions - the more the better
@@ -566,12 +568,14 @@ class AbstractEntity(AbstractModel):
         """
 
         from funkyprompt.services import entity_store
-
-        print('running search for ', cls)
-        return entity_store(cls).ask(questions, limit, **kwargs)
+        from funkyprompt.core.utils import logger, traceback
+        try:
+            return entity_store(cls).ask(questions, limit, **kwargs)
+            
+        except:
+            logger.warning(traceback.format_exc())
+            raise
     
- 
-
     def save(cls, context:str=None):
         """
         A save method on the entity
@@ -583,15 +587,15 @@ class AbstractEntity(AbstractModel):
          
         return entity_store(cls).update_records(cls)
         
-    @classmethod
-    def select(cls, limit:int=10):
-        """"""
-        from funkyprompt.services import entity_store
+    # @classmethod
+    # def select(cls, limit:int=10):
+    #     """"""
+    #     from funkyprompt.services import entity_store
          
-        return entity_store(cls).select(limit)
+    #     return entity_store(cls).select(limit)
         
     @classmethod
-    def upsert_entity(cls, name:str, data_delta: dict)->"AbstractModel":
+    def upsert_entity(cls, name:str, data_delta: dict=None, **kwargs)->"AbstractModel":
         """Save the entity by merging new and old data to the final object.
         You should always lookup the old entity if you do not already have it OR you should check the schema of the object to save a single dictionary object!!
         
@@ -614,6 +618,12 @@ class AbstractEntity(AbstractModel):
            on the one we want to keep it simple and fuzzy but we dont want to drop important facts
            BIG QUESTION: Ability to merge memory!
            """
+        
+        if  not data_delta:
+            """invariant to packed or kwargs"""
+            data_delta = kwargs
+            data_delta['name'] = data_delta.get('name') or name
+        
         store = entity_store(cls)
       
         existing = store.select_one(name) 

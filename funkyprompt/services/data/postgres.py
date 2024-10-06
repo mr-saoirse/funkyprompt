@@ -18,11 +18,19 @@ from funkyprompt.core.utils import logger
 from funkyprompt.core.types.sql import VectorSearchOperator
 from funkyprompt.entities import resolve as resolve_entity
 from pydantic._internal._model_construction import ModelMetaclass
+import re
 
 def cypher_with_age_wrapper(q: str, returns=None):
     """wrapper a cypher query - specify the return variables expected"""
-    returns = returns or ['n']
-    returns = f",".join([f'{n} agtype' for n in returns])
+    """try infer how many terms so we can create a clause for the AGE wrapper"""
+    
+    return_clause_regex = r"RETURN\s+([\w\s,]+)"
+    if not returns:
+        if match := re.search(return_clause_regex, q.upper()):
+            returns = [f"n{i}" for i, term in enumerate(match.group(1).split(','))]
+    
+    returns = f",".join([f'{n} agtype' for n in returns or ['n']])
+
     return (
         f""" LOAD 'age';
         SET search_path = ag_catalog, "$user", public;
@@ -36,23 +44,31 @@ def cypher_with_age_wrapper(q: str, returns=None):
 
 
 def _parse_vertex_result(x):
-    x = json.loads(x["n"].split("::")[0])
-    parts = x["label"].split("_", 1)
-    if len(parts) == 2:
-        model_namespace, model_name = parts
-    else:
-        model_namespace, model_name = 'core', parts[0]
-    name = x["properties"].get("name")
-    d = {
-        "entity_model_name": model_name,
-        "entity_model_namespace": model_namespace,
-        "name": name,
-    }
+    """
+    MATCH (n) RETURN n, label(n) AS nodeLabels
+    we match two terms in cypher and in AGE these are mapped to terms n_i
+    """
+    try:
+       
+        x = json.loads(x["n0"].split("::")[0])
+        parts = x["label"].split("_", 1)
+        if len(parts) == 2:
+            model_namespace, model_name = parts
+        else:
+            model_namespace, model_name = 'core', parts[0]
+        name = x["properties"].get("name")
+        d = {
+            "entity_model_name": model_name,
+            "entity_model_namespace": model_namespace,
+            "name": name,
+        }
+   
+        d["model"] = resolve_entity(**d)
 
-    d["model"] = resolve_entity(**d)
-
-    return d
-
+        return d
+    except:
+        logger.warning(f'Failed to parse {x}')
+        raise
 class GraphManager:
     def __init__(self, service: "PostgresService"):
         self._service = service
@@ -292,13 +308,6 @@ class PostgresService(DataServiceBase):
         data = self.execute(q)
         return [self.model(**dict(d)) for d in data]
         
-    def ask(self, question: str):
-        """[DEPRECATE] natural language to SQL is used to query the store"""
-        # prompt  = self.model.get_model_as_prompt()
-        query = self.model.sql().query_from_natural_language(
-            question,
-        )
-        return self.execute(query)
 
     def __getitem__(self, name: str):
         """the key value lookup on the graph is used for the labelled model type and name"""
@@ -322,7 +331,7 @@ class PostgresService(DataServiceBase):
         
         
 
-        cypher_query = f"""MATCH (v {{name:'{name}'}}) RETURN v"""
+        cypher_query = f"""MATCH (v {{name:'{name}'}}) RETURN v, label(v) AS nodelLabel"""
         data = cls(AbstractEntity).query_graph(cypher_query)
         """do the entity wrapper stuff here
            should return an expanded abstract model i.e. one with lots of metadata in a structure e.g. desc, data, available functions
@@ -345,7 +354,7 @@ class PostgresService(DataServiceBase):
                 if e:
                     valid_entities.append(e)
             except Exception as ex:
-                logger.warning(f"Failed to load an entity from the graph node - {d}")
+                logger.warning(f"Failed to load an entity from the graph node - {d} - {ex}")
               
         return valid_entities
 
@@ -407,6 +416,21 @@ class PostgresService(DataServiceBase):
                 return list(results.values())
 
         # if we have a high confidence query and it works, do this
+        
+        if classification.cypher_query:
+            query = classification.cypher_query.get('query')
+            confidence = classification.cypher_query.get('confidence')
+            #this is a low confidence threshold for now to test
+            
+            if confidence > 0.5:
+                data = self._execute_cypher(query)
+                data = [_parse_vertex_result(x) for x in data]
+                if len(data):
+                    return {
+                        'hint': "These are results from a graph search. You can lookup this set of entities using the entity lookup and supplying a list of names without asking for help",
+                        'data': data
+                    }
+        
         if (
             classification.sql_query
             and classification.sql_query_confidence_based_on_model

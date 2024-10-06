@@ -49,7 +49,7 @@ class MessageStack(BaseModel):
         description="Listing function names can be a useful hint", default_factory=list
     )
 
-    question: typing.Optional[str] = Field(
+    question: typing.Optional[str|typing.List[str]] = Field(
         description="The users question", default=None
     )
 
@@ -121,7 +121,7 @@ class MessageStack(BaseModel):
 
             """finally add the users question"""
             if values.get("question"):
-                messages.append(UserMessage(content=values.get("question")))
+                messages.append(UserMessage(content=str(values.get("question"))))
 
         values["messages"] = messages
 

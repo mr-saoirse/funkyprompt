@@ -99,13 +99,17 @@ class Runner:
         }
         
     def lookup_entity(self, name:str):
-        """lookup entity by one or more keys
+        """lookup entity by one or more keys. For example if you encounter entity names or keys in question, data etc you can use
+        the entity search to learn more about them
         
         Args:
             name: one or more names to use to lookup the entity or entities 
         """
         
         from funkyprompt.services import entity_store
+       
+
+        print('lookup entity', name)
        
         """todo test different parameter inputs e.g. comma separated"""
         entities =  entity_store(self.model).get_nodes_by_name(name,default_model=self.model)

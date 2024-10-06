@@ -4,7 +4,7 @@ import os
 from glob import glob
 import json
 from ast import literal_eval
-
+import traceback
 
 os.environ["LOGURU_LEVEL"] = "DEBUG"
 

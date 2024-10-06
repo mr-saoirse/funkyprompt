@@ -74,7 +74,7 @@ class FunctionManager:
         return f
 
     # may add tenacity retries for formatting
-    def plan(self, question: str, context: CallingContext = None, strict: bool = True):
+    def plan(self, question: str, context: CallingContext = None, strict: bool = False):
         """Given a question, use the known functions to construct a function calling plan (DAG)
 
         Args:

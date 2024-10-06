@@ -4,9 +4,12 @@ import typing
 DESCRIPTION = f"""The query classifier is used to determine the nature of a natural language query.
 1. If entities are mentioned, then it could be a key look therefore extract entities in the question is important
 2. If the question consists of multiple orthogonal elements, it could be split into separate questions
-3. if the user asks for lists or stats then they probably want to run an SQL type or Tabula type of query
+3. if the user asks for lists or statistic of some kind OR refer to something in the object schema then they probably want to run an SQL type or Tabular type of query which you can construct as a select statement with predicates, aggregates etc. Do not guess any field names in constructing SQL queries.
 4. if the user asks for something more descriptive then a vector search may be most useful
-5. In some complex cases a (cypher) graph query might be the most useful IF the schema of the graph is know
+5. In some complex cases a (cypher) graph query might be the most useful IF the schema of the graph is know. 
+  If someone wants to know about things that are "related" to some topic or node or entity that a Cypher query is possibly valid.
+  You should not add labels to nodes or edges unless you have seen form the schema that they exist and you should use `name` as the key attribute.
+  For cypher queries based on relations use `MATCH (n)-[r:TAG]->(m) WHERE m.name = 'Philosophy' RETURN n, label(n) as label`
 
 *How to classify*
 - It is useful to emphasize entities if they exist as a high value query input. 
@@ -84,24 +87,22 @@ class QueryClassifier(AbstractModel):
         from funkyprompt.services.models import language_model_client_from_context
         from funkyprompt.core.agents import LanguageModel, CallingContext
 
-        plan = f"""Below you are given details about a model. 
-This semantic information corresponds to a table 
-with the given fields some of which can be searched with vector search. 
+        plan = f"""Below you are given details about ane entity model. 
+This semantic information corresponds to a table with the given fields some of which can be searched with vector search. 
 Entity lookup is possible for the name field if known. 
-You should use the Query Classifier Model below [A] 
-to provide a classification for the *question*
-in the context the model [B]
+You should use the Query Classifier Model below [A] to provide a classification for the *question* in the context the model [B]
 
 # User's Question
 ```
 {question}
 ```
 
-# [A] Query Classifier model (use this to reply in succinct Json)
+# [A] Query Classifier System prompt
 
 {cls.get_model_as_prompt()}
 
 # [B] Entity model
+_(Use this entity model to construct a specific query classification for the model)_
 
 {model.get_model_as_prompt()}
 

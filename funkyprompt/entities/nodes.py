@@ -319,7 +319,10 @@ class PersonPreferences(AbstractEntity):
             but its important not to overwrite any useful information but instead use an intelligent merge strategy.
             There are various fields that should be upserted for the user during conversation and there may be functions that can be called to save or lookup other details.
             It is important to consider the context of the user's preference when performing some tasks.
-            You should be careful to unique identify a person. It is good to noramalzie names to title Case and observe ownership case e.g toms or tom's probably refers to the person Tom.
+            You should be careful to unique identify a person. It is good to normalize names to title Case and observe ownership case e.g toms or tom's probably refers to the person Tom.
+            
+            When adding related entities you should add them as references of the form S/C where S is a specific entity and C is a category. Please save these as `graph_paths`
+            If asked to list or count the preferences in the system you can run a search for this too. Generally you should try to run a search unless asked meta questions about the agent abilities.
             """
         )
 
@@ -414,3 +417,13 @@ class Summary(AbstractContentModel):
         name: str = 'summary'
         description:str = """Maintain summaries as a separate node"""
           
+
+"""temporary - we would override this with the database entry"""
+class Notes(AbstractEntity):
+    class Config:
+        name: str = "Notes"
+        namespace: str = "public"
+        description: str = (
+            """This is a proxy for the Notes markdown agent which can be used to read, save and search for notes
+            """
+        )
