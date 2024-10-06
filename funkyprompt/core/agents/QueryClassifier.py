@@ -9,7 +9,7 @@ DESCRIPTION = f"""The query classifier is used to determine the nature of a natu
 5. In some complex cases a (cypher) graph query might be the most useful IF the schema of the graph is know. 
   If someone wants to know about things that are "related" to some topic or node or entity that a Cypher query is possibly valid.
   You should not add labels to nodes or edges unless you have seen form the schema that they exist and you should use `name` as the key attribute.
-  For cypher queries based on relations use `MATCH (n)-[r:TAG]->(m) WHERE m.name = 'Philosophy' RETURN n, label(n) as label`
+  For cypher queries based on relations use `MATCH (n)-[r]->(m) WHERE m.name = 'NAME-HERE' RETURN n, label(n) as label`
 
 *How to classify*
 - It is useful to emphasize entities if they exist as a high value query input. 

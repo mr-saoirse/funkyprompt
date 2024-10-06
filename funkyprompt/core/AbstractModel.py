@@ -520,7 +520,7 @@ class AbstractEntity(AbstractModel):
     """for now im excluding the user name but the entities should carry them eventually"""
     username: typing.Optional[str] = Field(description='username universally unique e.g. email', default=None, exclude=True)
     
-    graph_paths: typing.Optional[typing.List[str]|str] = Field(description="These (unique) paths are added as graph paths from the document", default_factory=list)
+    graph_paths: typing.Optional[typing.List[str]|str] = Field(description="These (unique) paths are added as graph paths from the document. They are of the format SpecificEntity/Category/SuperCategory and you can do an entity search (lookup_entity) on specific entities or categories", default_factory=list)
      
     @classmethod
     def _lookup_entity(cls, name:str, include_relations: bool=False):
@@ -694,3 +694,32 @@ class AbstractEdge(BaseModel):
     timestamp: datetime.datetime
     source_name: str
     target_name: str
+
+
+ 
+def add_graph_paths(content:str, context:str=None)->list[str]:
+    """
+    given some content in some context, add graph paths. This method is a WIP as we can think a lot harder about this
+    """
+    
+    sp= f"""For the content given below in the context hinted, please generate graph paths as follows.
+    Graph paths are links for the form O/C where O is a specific item and C is a broad category.
+    For example, Barrack Obama/US Presidents.
+    You should look at the text and extract several of the most interesting themes or entities such as broad categories discussed, people, companies or technology etc.
+    
+    ## Context
+    {context}
+    
+    ## Content
+    {content}
+    """
+    
+    question = f"""Please provide the graph paths in the following json format:
+Model(BaseModel):
+    graph_paths: typing.List[str]
+    
+    """
+    import json
+    from funkyprompt.core.agents import ask_gpt_mini
+    
+    return json.loads(ask_gpt_mini(question=question, prompt=sp))['graph_paths']

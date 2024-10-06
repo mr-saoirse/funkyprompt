@@ -108,8 +108,7 @@ class Runner:
         
         from funkyprompt.services import entity_store
        
-
-        print('lookup entity', name)
+        utils.logger.debug(f"lookup entity/{name=}")
        
         """todo test different parameter inputs e.g. comma separated"""
         entities =  entity_store(self.model).get_nodes_by_name(name,default_model=self.model)

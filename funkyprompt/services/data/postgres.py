@@ -25,7 +25,7 @@ def cypher_with_age_wrapper(q: str, returns=None):
     """try infer how many terms so we can create a clause for the AGE wrapper"""
     
     return_clause_regex = r"RETURN\s+([\w\s,]+)"
-    if not returns:
+    if not returns and q:
         if match := re.search(return_clause_regex, q.upper()):
             returns = [f"n{i}" for i, term in enumerate(match.group(1).split(','))]
     
@@ -444,17 +444,19 @@ class PostgresService(DataServiceBase):
 
         """fall back to a vector search - a temporal predicate will be needed here"""
         count_vector_result = 0
+        vector_keys = []
         for q in classification.decomposed_questions:
             try:
                 for r in self.vector_search(q):
                     results[r["id"]] = r
+                    vector_keys.append(r['name'])
                     count_vector_result+= 1
             except:
                 #because we do this aspirationally we only error if the recommended type was vector
                 if classification.recommend_query_type == 'VECTOR':
                     raise
         #telemetry
-        logger.debug(f"fetched {count_vector_result} using vector search")
+        logger.debug(f"fetched {count_vector_result} using vector search: keys {vector_keys}")
         return list(results.values())
 
     def vector_search(
