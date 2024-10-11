@@ -41,7 +41,8 @@ Please respond in a structured format with fenced json. Use the response format 
     @classmethod
     def favorite_color(cls, person:str):
         """
-        For three people Bob, Henrik and Ursula, you can ask for the favorite color and get an answer 
+        For three people Bob, Henrik and Ursula, 
+you can ask for the favorite color and get an answer 
         
         Args:
             person: the name of the person
