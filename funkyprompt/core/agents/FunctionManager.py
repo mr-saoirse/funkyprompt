@@ -167,3 +167,5 @@ class FunctionManager:
     def functions(self) -> typing.Dict[str, Function]:
         """provides a map of functions"""
         return self._functions
+
+""""""

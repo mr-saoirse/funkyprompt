@@ -160,66 +160,37 @@ class TestDag(AbstractContentModel):
     
     @staticmethod
     def __fetch():
-        """"""
-        
-        return {
-        "Bob": {
-            "Green Elephant": "likes",
-            "Red Dog": "doesn't like",
-            "Blue Cat": "likes",
-            "Yellow Lion": "doesn't like",
-            "Purple Rabbit": "likes",
-        },
-        "Alice": {
-            "Green Elephant": "doesn't like",
-            "Red Dog": "likes",
-            "Blue Cat": "doesn't like",
-            "Yellow Lion": "likes",
-            "Purple Rabbit": "doesn't like",
-        },
-        "Charlie": {
-            "Green Elephant": "likes",
-            "Red Dog": "likes",
-            "Blue Cat": "doesn't like",
-            "Yellow Lion": "likes",
-            "Purple Rabbit": "doesn't like",
-        },
-        "Dave": {
-            "Green Elephant": "doesn't like",
-            "Red Dog": "doesn't like",
-            "Blue Cat": "likes",
-            "Yellow Lion": "doesn't like",
-            "Purple Rabbit": "likes",
-        },
-        "Eve": {
-            "Green Elephant": "likes",
-            "Red Dog": "doesn't like",
-            "Blue Cat": "doesn't like",
-            "Yellow Lion": "likes",
-            "Purple Rabbit": "likes",
-        },
-    }
+        """generate data we accept"""
+        import random
+        people = ["Bob", "Alice", "Charlie", "Dave", "Eve"]
+        animals = ["Elephant", "Dog", "Cat", "Lion", "Rabbit"]
+        colors = ["Green", "Red", "Blue", "Yellow", "Purple"]
+        combinations = [f"{color} {animal}" for color in colors for animal in animals]
+        def random_preference():
+            return random.choice(["likes", "doesn't like"])
+        return {name: {c: random_preference() for c in combinations} for name in people}
+
 
     @classmethod
     def get_animal_name_by_id(cls, id: int):
         """
-        select an animal by id for ids 0 to 4
+        select an animal by id for ids 0 to 40
         
         Args:
-            id: the id of the animal 0-4
+            id: the id of the animal 0-40
         """
-    
+        print('passed id lookup for animal',id)
         return [ 'Elephant', 'Dog' 'Cat', 'Lion', 'Rabbit'][id%5]
         
     @classmethod
     def get_color_name_by_id(cls, id: int):
         """
-        select the color by id for ids 0 to 4
+        select the color by id for ids 0 to 40
         
         Args:
-            id: the id of the color 0-4
+            id: the id of the color 0-40
         """
-    
+        print('passed id lookup for color',id)
         return [ 'Green','Red', 'Blue', 'Yellow', 'Purple'][id%5]
     
     @classmethod
@@ -231,8 +202,19 @@ class TestDag(AbstractContentModel):
             animal_name: provide name of animal that you found
             color:name: provide the color name
         """
-    
+
         return f"{color_name} {animal_name}"
+    
+    @classmethod
+    def get_radom_person(cls):
+        """
+        get a random person
+        
+        """
+        
+        import random
+        return ['Bob','Alice','Charlie','Dave','Eve'][random.randint(0,4)]
+    
     
     @classmethod
     def determine_random_persons_opinion_of_animal(cls, animal_description: str, person_name: str):
@@ -246,6 +228,7 @@ class TestDag(AbstractContentModel):
         """
         
         try:
+            print('trying to call opinion with ',person_name, animal_description)
             return TestDag.__fetch()[person_name][animal_description]
         except:
-            raise "You have selected a combination that does not make sense. Please find a valid person and animal description"
+            raise Exception("You have selected a combination that does not make sense. Please find a valid person and animal description")
