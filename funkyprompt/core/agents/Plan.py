@@ -54,7 +54,7 @@ def expand_refs(
     return node
 
 
-PLANNING_PROMPT = f"""Below is a schema for building a plan allowing you to generate a JSON DAG tree structure. The Tree should have a single Plan root (gemini). 
+PLANNING_PROMPT = f"""Below is a schema for building a plan allowing you to generate a JSON DAG tree structure. The Tree should have a single Plan root.
 
 I would like you to consider the functions provided and build a plan to solve the task.
 

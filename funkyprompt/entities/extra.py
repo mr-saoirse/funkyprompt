@@ -1,3 +1,7 @@
+"""This model is used only to test traversing markdown documents with backlinks
+there is some slop to scrape some data.
+"""
+
 from funkyprompt.core import AbstractContentModel
 from funkyprompt.core.AbstractModel import add_graph_paths
 
@@ -25,7 +29,7 @@ You can also lookup graph paths to find related material.
 ## Required stages
 
 stage 1: Your job is to do a multi-hop or deep dive on the user's question. You should probe with an initial vector search on multiple questions to get some context.
-stage 2: You should then use this to plan your argument. You will retrieve some content that provides context as well as hyperlinks to other content.
+stage 2: You should then use this to plan your argument. You will retrieve some content that provides context as well as hyperlinks to other content that you can find via entity lookup.
 stage 3: You should use vector searches to ask more questions AND you should use entity lookup to check out the linked documents.
 
   
@@ -65,8 +69,6 @@ stage 3: You should use vector searches to ask more questions AND you should use
         """
         iterate over the essays
         """
-        
-        
         for data in Grahams.__extract_links(get_soup(url=local_url)):
             yield data
         
@@ -82,7 +84,7 @@ stage 3: You should use vector searches to ask more questions AND you should use
             if a_tag.text != '' and 'http' not in a_tag['href'] and 'rss.html' not in a_tag['href']:
                 links[a_tag['href']] = a_tag.text
  
-        print(links)
+        #print(links)
         
         for link, title in links.items():
             """visit and parse the html"""
@@ -98,8 +100,6 @@ stage 3: You should use vector searches to ask more questions AND you should use
                                   content=record, 
                                   graph_paths=add_graph_paths(record))
             
-            
-        
     @staticmethod
     def __html_to_markdown(title, html_content):
         """
@@ -148,3 +148,104 @@ stage 3: You should use vector searches to ask more questions AND you should use
             all_[i] =  f'### {title} - part {i+1}\n\n' + all_[i] + f"\n\n### Links to other parts\n {generate_markdown_links(title, n, headless=True)}"
 
         return [title_page] + all_
+    
+
+  
+    
+class TestDag(AbstractContentModel):
+    """
+    this agent is used to test planning. You can use it to find animal descriptions and random people so that you can determine the persons opinion of the described animal
+    
+    """
+    
+    @staticmethod
+    def __fetch():
+        """"""
+        
+        return {
+        "Bob": {
+            "Green Elephant": "likes",
+            "Red Dog": "doesn't like",
+            "Blue Cat": "likes",
+            "Yellow Lion": "doesn't like",
+            "Purple Rabbit": "likes",
+        },
+        "Alice": {
+            "Green Elephant": "doesn't like",
+            "Red Dog": "likes",
+            "Blue Cat": "doesn't like",
+            "Yellow Lion": "likes",
+            "Purple Rabbit": "doesn't like",
+        },
+        "Charlie": {
+            "Green Elephant": "likes",
+            "Red Dog": "likes",
+            "Blue Cat": "doesn't like",
+            "Yellow Lion": "likes",
+            "Purple Rabbit": "doesn't like",
+        },
+        "Dave": {
+            "Green Elephant": "doesn't like",
+            "Red Dog": "doesn't like",
+            "Blue Cat": "likes",
+            "Yellow Lion": "doesn't like",
+            "Purple Rabbit": "likes",
+        },
+        "Eve": {
+            "Green Elephant": "likes",
+            "Red Dog": "doesn't like",
+            "Blue Cat": "doesn't like",
+            "Yellow Lion": "likes",
+            "Purple Rabbit": "likes",
+        },
+    }
+
+    @classmethod
+    def get_animal_name_by_id(cls, id: int):
+        """
+        select an animal by id for ids 0 to 4
+        
+        Args:
+            id: the id of the animal 0-4
+        """
+    
+        return [ 'Elephant', 'Dog' 'Cat', 'Lion', 'Rabbit'][id%5]
+        
+    @classmethod
+    def get_color_name_by_id(cls, id: int):
+        """
+        select the color by id for ids 0 to 4
+        
+        Args:
+            id: the id of the color 0-4
+        """
+    
+        return [ 'Green','Red', 'Blue', 'Yellow', 'Purple'][id%5]
+    
+    @classmethod
+    def get_animal_description(cls, animal_name: str, color_name: str):
+        """
+        pass in the animal name and color name to get a full description
+        
+        Args:
+            animal_name: provide name of animal that you found
+            color:name: provide the color name
+        """
+    
+        return f"{color_name} {animal_name}"
+    
+    @classmethod
+    def determine_random_persons_opinion_of_animal(cls, animal_description: str, person_name: str):
+        """
+        given a person and an animal description that you found
+        
+        Args: 
+            animal_description: provide an animal description
+            person_name: the person whose opinion you want to find out about
+
+        """
+        
+        try:
+            return TestDag.__fetch()[person_name][animal_description]
+        except:
+            raise "You have selected a combination that does not make sense. Please find a valid person and animal description"

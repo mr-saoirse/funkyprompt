@@ -398,7 +398,7 @@ class PostgresService(DataServiceBase):
             )
         )
 
-        print(classification)
+        print(self.model, classification)
 
         """we should audit all query decisions - maybe as an async task
         below this is framed as an either or to put pressure on the decision maker

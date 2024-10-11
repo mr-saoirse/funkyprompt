@@ -16,6 +16,12 @@ from ..functions import Function
 import typing
 from funkyprompt.core.utils.openapi import Cache
 
+
+def unqual(d):
+    if  isinstance(d,list):
+        d = {item:None for item in d}
+
+    return d
 class FunctionManager:
     """The function manager is used to plan and search over functions.
     It can also do the basic serialization faff to make functions in their various formats callable.
@@ -56,7 +62,7 @@ class FunctionManager:
             added_functions.append(self.add_function(f,alias=alias))
         return added_functions
 
-    def add_function(self, f: typing.Callable | "Function",alias:str=None):
+    def add_function(self, f: typing.Callable | "Function", alias:str=None):
         """A callable function or Function type can be added to available functions.
         The callable is a python instance function that can be wrapped in a Function type
         or the Function can type can be added directly.
@@ -103,9 +109,8 @@ class FunctionManager:
         return response
 
     def add_functions_by_name(self, function_names: dict):
-        """functions by named can be added to the runtime
-        When plans or searches or run, the agent must ask to activate the functions.
-
+        """functions loaded by name can be added to the runtime. When plans or searches or run, the agent must ask to activate the functions.
+       
         Activation means
         1. adding the function to the stack of callable functions in the language model context
         2. adding the function to the runtime so it can be called by the Runner
@@ -114,7 +119,9 @@ class FunctionManager:
             function_names (dict): provide a map of the function and the entity it belongs to. if the function is prefixed with a verb such as get or post, please retain it in the name
         """
         from funkyprompt.entities import load_entities
- 
+        
+        function_names = unqual(function_names)
+        
         """this will become smarter and faster"""
         entities = load_entities()
         entities = {e.get_model_fullname():e for e in entities}
@@ -127,11 +134,13 @@ class FunctionManager:
                 self.add_function(F)
             else: #entity function
                 """remove any qualification"""
-                f = f.replace(f"{entity_name}_", '')
+                alias = str(f).replace('.','_')
+                f = f.replace(f"{entity_name}", '').lstrip('_').lstrip('.')
                 entity = entities.get(entity_name)
                 if entity is None:
                     raise Exception(f"The entity {entity_name} does not exist or cannot be loaded from {entities}")
-                self.add_function(getattr(entity,f))
+                self.add_function(getattr(entity,f), alias=alias)
+                print('added', alias)
             
         """only return the ones we add successfully"""
         return function_names

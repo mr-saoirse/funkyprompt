@@ -65,11 +65,16 @@ class Runner:
         """
         If you encounter a full name of a function that you don't have details for, you can activate it here.
         Once you activate it, it will be ready for use. Supply one or more function names to activate them.
+        The parameter takes a dictionary mapping of functions to their bound_entity_name. 
+        For example a function like schema.namespace.function_name has bound_entity_name=schema.namespace and name function_name so you pass a map function_name->bound_entity_name
+        If the verb syntax is used e.g. get:/some/endpoint you can pass this as get:/some/endpoint->domain (if known) or None for domain if not known.
+        Here is a valid valid for the single parameter `function_name_to_entity_mapping`
+        Example:
         ```
-        Example calls;
-        (1) You have an entity called Animals and a functions called get_details, supply {'get_details', 'animals'}
-        (2) You have an endpoint with a verb (and you may know the domain), supply {'verb:/function' : 'domain' | None}
+        { get:/some/endpoint: None, 'public.notes': 'run_search'}
         ```
+        And you can apply this for any valid entity and function 
+
         
         Args:
             function_name_to_entity_mapping (dict): provide a map between a function name and the entity (or domain) that the function belongs to.
@@ -90,7 +95,7 @@ class Runner:
         fm = function_name_to_entity_mapping
         if not isinstance(fm,dict):
             raise Exception("When calling this function, in `function_names` you must provide a mapping between the function and the entity or domain it belongs e.g. {'some_function': 'namespace.entity'}")
-        
+            
         utils.logger.debug(f'activating function {fm}')
         fm = self._function_manager.add_functions_by_name(fm)
             
