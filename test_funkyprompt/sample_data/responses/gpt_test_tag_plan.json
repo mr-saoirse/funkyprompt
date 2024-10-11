@@ -1,0 +1,75 @@
+{
+    "id": "plan_random_person_opinion",
+    "name": "Plan to Find Random Person's Opinion on Animal Description",
+    "plan_description": "This plan retrieves an animal description based on given IDs and determines a random person's opinion on it.",
+    "questions": [
+      "What is the opinion of a random person on the animal with ID 0 and color ID 1?"
+    ],
+    "extra_arguments": {
+      "animal_id": 0,
+      "color_id": 1
+    },
+    "functions": [],
+    "depends": [
+      {
+        "id": "get_animal_name",
+        "name": "Get Animal Name by ID",
+        "plan_description": "Retrieve the animal name using the provided animal ID.",
+        "functions": [
+          {
+            "name": "extra.TestDag.get_animal_name_by_id",
+            "bound_entity_name": "extra.TestDag",
+            "description": "Select an animal by id for ids 0 to 4",
+            "rating": 90
+          }
+        ],
+        "extra_arguments": {
+          "id": 0
+        }
+      },
+      {
+        "id": "get_color_name",
+        "name": "Get Color Name by ID",
+        "plan_description": "Retrieve the color name using the provided color ID.",
+        "functions": [
+          {
+            "name": "extra.TestDag.get_color_name_by_id",
+            "bound_entity_name": "extra.TestDag",
+            "description": "Select the color by id for ids 0 to 4",
+            "rating": 90
+          }
+        ],
+        "extra_arguments": {
+          "id": 1
+        }
+      },
+      {
+        "id": "get_animal_description",
+        "name": "Get Animal Description",
+        "plan_description": "Get a full description of the animal using the animal name and color name.",
+        "functions": [
+          {
+            "name": "extra.TestDag.get_animal_description",
+            "bound_entity_name": "extra.TestDag",
+            "description": "Pass in the animal name and color name to get a full description",
+            "rating": 95
+          }
+        ],
+        "depends": ["get_animal_name", "get_color_name"]
+      },
+      {
+        "id": "determine_opinion",
+        "name": "Determine Random Person's Opinion",
+        "plan_description": "Find out a random person's opinion on the animal description.",
+        "functions": [
+          {
+            "name": "extra.TestDag.determine_random_persons_opinion_of_animal",
+            "bound_entity_name": "extra.TestDag",
+            "description": "Given a person and an animal description that you found",
+            "rating": 95
+          }
+        ],
+        "depends": ["get_animal_description"]
+      }
+    ]
+  }
