@@ -132,8 +132,18 @@ class SqlHelper:
         """if there is an embedding map we can add the embeddings here
             but its assumed that the database supports those embeddings by convention
         """
+        
+        """im not sure what i need to do this yet"""
+        d = {}
+        import json
+        for k,v in data.items():
+            if hasattr(v,'model_dump'):
+              v = v.model_dump()
+            if isinstance(v,list):
+                v = [json.dumps( vi.model_dump() ) if hasattr(vi,'model_dump') else vi for vi in v  ]
+            d[k] = v  
 
-        return data
+        return d
 
     @classmethod
     def pydantic_to_postgres_type(cls, t):

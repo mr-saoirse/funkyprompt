@@ -32,7 +32,7 @@ class Runner:
     Under the hood the function manager handles actual function loading and searching
     """
 
-    def __init__(self, model: AbstractModel = None):
+    def __init__(self, model: AbstractModel = None, allow_help:bool=True):
         """
         A model is passed in or the default is used
         The reason why this is passed in is to supply a minimal set of functions
@@ -41,6 +41,7 @@ class Runner:
         """
         self.model = model or DefaultAgentCore()
         self._function_manager = FunctionManager()
+        self._allow_help = allow_help
         self.initialize()
         
     def __repr__(self):
@@ -49,11 +50,13 @@ class Runner:
     def initialize(self):
         """register the functions and other metadata from the model"""
         self._context = None
+        if self._allow_help:
+            self._function_manager.add_function(self.help) # :)
+        
         """register the model's functions which can include function search"""
         self._function_manager.register(self.model)
         """the basic bootstrapping means asking for help, entities(types) or functions"""
         self._function_manager.add_function(self.lookup_entity)
-        self._function_manager.add_function(self.help) # :)
         self._function_manager.add_function(self.activate_functions_by_name)
         """more complex things will happen from here when we traverse what comes back"""
         

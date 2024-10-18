@@ -41,8 +41,7 @@ Please respond in a structured format with fenced json. Use the response format 
     @classmethod
     def favorite_color(cls, person:str):
         """
-        For three people Bob, Henrik and Ursula, 
-you can ask for the favorite color and get an answer 
+        For three people Bob, Henrik and Ursula, you can ask for the favorite color and get an answer 
         
         Args:
             person: the name of the person
@@ -98,7 +97,7 @@ You can register any object in the database with `TestObject._register(allow_cre
 
 ## Data (AIDA)
 
-Funkyprompt is primarily used for RAG use cases. More generally, because the notion of RAG may be restrictive for us, we are interested inan AI Data Architecture (AIDA). AIDA considers design patterns for adding semantics over existing databases and APIs to make them "AI-ready". It considers multi-modal data types. While Vector data plays a role, structured SQL and NoSQL data are also important. Key-Value for example is critical for entity resolution use cases. Generally we use a graph database to manage both key-value and relations. 
+Funkyprompt is primarily used for RAG use cases. More generally, because the notion of RAG may be restrictive for us, we are interested in an AI Data Architecture (AIDA). AIDA considers design patterns for adding semantics over existing databases and APIs to make them "AI-ready". It considers multi-modal data types. While Vector data plays a role, structured SQL and NoSQL data are also important. Key-Value for example is critical for entity resolution use cases. Generally we use a graph database to manage both key-value and relations. 
 
 Funkyprompt leans heavily on semantic modelling in Pydantic. The data layer is intended to be opaquely used. For example we will dump entities or search entities using the schema defined in Pydantic models or agents without requiring any additional code. Any more sophisticated data interaction could be implemented with custom functions or APIs but there are some core CRUD use cases that are built in to funkyprompt. 
 
