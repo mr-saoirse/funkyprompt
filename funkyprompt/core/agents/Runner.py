@@ -147,16 +147,22 @@ class Runner:
         except Exception as ex: 
             return {'status': 'error', 'detail': repr(ex)}
 
-    def help(self, questions: str | typing.List[str]):
+    def help(self, questions: str | typing.List[str], context: str = None ):
         """if you are stuck ask for help with very detailed questions to help the planner find resources for you.
+        If you have a hint about what the source or tool to use hint that in each question that you ask.
+        For example, you can either just ask a question or you can ask "according to resource X" and then ask the question. This is important context.
 
         Args:
-            question (str): provide detailed questions to guide the planner
+            questions (str): provide detailed questions to guide the planner. you should augment the users question with the additional context that you have e.g. a known source
+            context: any added context e.g. what tool, function, source the user or system suggests may know the answer 
         """
 
-        utils.logger.debug(f"help/{questions=}")
+        utils.logger.debug(f"help/{questions=} | {context=}")
 
         try:
+            if context:
+                questions = f"Using information from {context}, {questions}"
+                
             """for now strict planning is off"""
             plan = self._function_manager.plan(questions,strict=False)
         except:

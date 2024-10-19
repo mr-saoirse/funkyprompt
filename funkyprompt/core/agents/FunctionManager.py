@@ -101,6 +101,10 @@ class FunctionManager:
         messages = MessageStack(
             question=question, model=Plan, language_model_provider=context.model if context else None
         )
+        
+        if not context:
+            context = CallingContext(prefer_json=True)
+    
 
         response = lm_client(messages=messages, functions=functions, context=context)
         if strict:
@@ -134,8 +138,12 @@ class FunctionManager:
                 self.add_function(F)
             else: #entity function
                 """remove any qualification"""
+                if not entity_name:
+                    entity_name =  '.'.join(f.split('.')[:-1])
+    
                 alias = str(f).replace('.','_')
                 f = f.replace(f"{entity_name}", '').lstrip('_').lstrip('.')
+                
                 entity = entities.get(entity_name)
                 if entity is None:
                     raise Exception(f"The entity {entity_name} does not exist or cannot be loaded from {entities}")

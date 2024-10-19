@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "funkyprompt"
-version = "0.5.21"
+version = "0.5.22"
 description = "A library for speaking with large langauge models using object orientated generation to build data-rich agentic systems"
 authors = ["mr-saoirse <amartey@gmail.com>"]
 license = "MIT"
