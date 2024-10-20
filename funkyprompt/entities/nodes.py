@@ -419,7 +419,7 @@ class Summary(AbstractContentModel):
           
 
 """temporary - we would override this with the database entry"""
-class Notes(AbstractEntity):
+class Notes(AbstractContentModel):
     class Config:
         name: str = "Notes"
         namespace: str = "public"
