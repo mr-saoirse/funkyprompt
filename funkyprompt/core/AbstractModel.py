@@ -697,7 +697,7 @@ class AbstractEdge(BaseModel):
 
 
  
-def add_graph_paths(content:str, context:str=None)->list[str]:
+def add_graph_paths(content:str, context:str=None, clean_text:bool = False)->list[str]:
     """
     given some content in some context, add graph paths. This method is a WIP as we can think a lot harder about this
     """
@@ -719,7 +719,20 @@ Model(BaseModel):
     graph_paths: typing.List[str]
     
     """
+    
+    if clean_text:
+            question = f"""Please provide the graph paths and the cleaned text content in the following json format:
+Model(BaseModel):
+    graph_paths: typing.List[str]
+    cleaned_text: str
+    """
+    
+        
     import json
     from funkyprompt.core.agents import ask_gpt_mini
     
-    return json.loads(ask_gpt_mini(question=question, prompt=sp))['graph_paths']
+    result = json.loads(ask_gpt_mini(question=question, prompt=sp))
+    if clean_text:
+        return result
+    
+    return result['graph_paths']

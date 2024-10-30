@@ -109,7 +109,7 @@ class FunctionManager:
         response = lm_client(messages=messages, functions=functions, context=context)
         if strict:
             response: Plan = Plan.model_validate_json(response)
-
+        print('PLAN', response)
         return response
 
     def add_functions_by_name(self, function_names: dict):

@@ -59,7 +59,7 @@ PLANNING_PROMPT = f"""Below is a schema for building a plan allowing you to gene
 I would like you to consider the functions provided and build a plan to solve the task.
 
 You should break the problem down into steps and consider;
-(a) what functions can be used in each step matching the correct entity to the most suitable function 
+(a) what functions can be used in each step matching the correct entity to the most suitable function. Comment to the caller that they can pass the name and bound entity of each function to activate it later.
 (b) what strategy to use in each step
 (c) how results from one step can be embedded as questions to the next.
 
@@ -74,7 +74,7 @@ The user will supply further instructions for the task."""
 
 class PlanFunctions(AbstractModel):
     name: str = Field(
-        description="fully qualified function name e.g. <namespace>.<name>"
+        description="Fully qualified function name e.g. <namespace>.<name>. Please do not use just the name as we need to qualify even if the bound entity property is specified"
     )
     bound_entity_name:str = Field(default=None,
         description="functions are discovered on entities and the entity name is required. For external API functions this can be the domain or api prefix."
@@ -85,7 +85,6 @@ class PlanFunctions(AbstractModel):
     rating: float = Field(default=0,
         description="a rating from 0 to 100 for how useful this function should be in context"
     )
-
 
 class Plan(AbstractEntity):
     """
@@ -101,8 +100,17 @@ class Plan(AbstractEntity):
         as_json: bool = True
         description = PLANNING_PROMPT
 
+    #hide this for now from the export
+    id: str = Field(exclude=True)
+    
+    #hint for runners
+    activation_instruction: str = Field(description="Use the functions name and the bound entity name to activate the functions for use",
+                                        default="Use the functions name and the bound entity name to activate the functions for use")
+
+
+
     name: typing.Optional[str] = Field(
-        description="The unique name of the plan node", default=None
+        description="The unique name of the plan node - you can use this value for the `id` too", default=None
     )
 
     plan_description: typing.Optional[str] = Field(default=None,

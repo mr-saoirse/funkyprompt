@@ -11,7 +11,7 @@ In funkyprompt the game is to play nice with AbstractModels so that the postgres
 import json
 import typing
 import psycopg2
-from funkyprompt.core import AbstractModel, AbstractEntity, AbstractEdge
+from funkyprompt.core import AbstractModel, AbstractEntity, AbstractEdge, AbstractContentModel
 from funkyprompt.services.data import DataServiceBase
 from funkyprompt.core.utils.env import POSTGRES_CONNECTION_STRING, AGE_GRAPH
 from funkyprompt.core.utils import logger
@@ -345,16 +345,24 @@ class PostgresService(DataServiceBase):
             """we are going to try and use graph nodes to manage any type but we can also just assume one exists on this entity type"""
             data = [ {'name':name, 'model': default_model } ]
             
+
         """a not so efficient way to load entities but fine for now"""
         valid_entities = []
         for d in data:
             try:
+                model = d.get('model')
+                if not model:
+                    """or we can resolve the entire thing for proper schema"""
+                    model = AbstractContentModel.create_model(name=d['entity_model_name'], namespace=d['entity_model_namespace'])
+                    
                 """sketches: we want a generalized way to load entities and register their metadata"""
-                e = cls(d["model"]).select_one(d["name"])
+                e = cls(model).select_one(d["name"])
                 if e:
                     valid_entities.append(e)
             except Exception as ex:
-                logger.warning(f"Failed to load an entity from the graph node - {d} - {ex}")
+                import traceback
+                logger.warning(f"Failed to load an entity from the graph node - {d} - {traceback.format_exc()}")
+                
               
         return valid_entities
 
@@ -416,7 +424,7 @@ class PostgresService(DataServiceBase):
                 return list(results.values())
 
         # if we have a high confidence query and it works, do this
-        
+         
         if classification.cypher_query:
             query = classification.cypher_query.get('query')
             confidence = classification.cypher_query.get('confidence')
@@ -426,6 +434,7 @@ class PostgresService(DataServiceBase):
                 data = self._execute_cypher(query)
                 data = [_parse_vertex_result(x) for x in data]
                 if len(data):
+                    print(data)
                     return {
                         'hint': "These are results from a graph search. You can lookup this set of entities using the entity lookup and supplying a list of names without asking for help",
                         'data': data
@@ -442,6 +451,7 @@ class PostgresService(DataServiceBase):
             if len(data):
                 return data
 
+         
         """fall back to a vector search - a temporal predicate will be needed here"""
         count_vector_result = 0
         vector_keys = []

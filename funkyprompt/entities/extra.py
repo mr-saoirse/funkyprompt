@@ -232,3 +232,70 @@ class TestDag(AbstractContentModel):
             return TestDag.__fetch()[person_name][animal_description]
         except:
             raise Exception("You have selected a combination that does not make sense. Please find a valid person and animal description")
+        
+        
+class ResearchAssistant(AbstractContentModel):
+    """
+    Using this as an opinionated page parse example
+    This just extends abstract entity but it parses content in a particular way
+    
+    """
+    class Config:
+        name: str = 'research'
+        namespace:str = 'public'
+        description: str = f"""Your job is to add notes and relationships between notes. 
+        You will consume book chapters, web articles, and user notes into the system.
+        you will process notes and add graph links between topics.
+        You will support retrieving content that can be used to build arguments, summarize literature, build statistical results and plots etc.
+        
+        Mode B
+        If asked to write an essay you should generate some questions and perform a search. 
+        Because by stating the layout of the article.
+        It will also be useful to construct a graphical relationships of the main argument which can take a json format. Please add that as an appendix 
+         In the graphical representation you should talk about the relationships between people and idea in terms of causality, conflict, coherence etc.
+        Then construct a basic essay structure.
+        Then for each section, do a new search to provide a detailed overview in each section.
+        Complete the essay with a conclusion and introduction. Use referenced text in quotation format.
+        Add critiques that would go against the ideas suggested in your data and add criticisms as a section.
+        You should write the essay in the form of an excerpt scientists and avoid making trite overview statements
+        
+        Mode C
+        If asked to plan an essay, simply generate a Json structure of both the document structure and the main arguments. 
+        You should run a vector search to generates some questions and data to work with. You should pass many questions to the vector search.
+        You should many relationships between the data that you found that could be explored
+    """
+    
+    
+    @classmethod
+    def write(cls,contents):
+        from funkyprompt.services import entity_store
+        s = entity_store(cls)
+        s.update_records(contents)
+    
+    @classmethod
+    def add_book(cls,path, name=None, category=None):
+        """
+        '/Users/sirsh/Documents/books/time-and-free-will-bergson.pdf'
+        """
+        from tqdm import tqdm
+        from funkyprompt.core.utils.parsing.pdf import PdfParser
+        name = name or path.split('/')[-1].split('.')[0]
+        doc= PdfParser(path)
+        contents = []
+        print(len(doc._parsed_text))
+        for i, text in tqdm(enumerate(doc._parsed_text)):
+            content = f"""## Part {i} of book {name}
+---------------------------------------------------
+{text}
+---------------------------------------------------
+            """
+            data = add_graph_paths(content, clean_text=True)
+            contents.append(cls(name=f"{name}_{i}",catefory=category,content= data['cleaned_text'], graph_paths=data['graph_paths'][:2] ))
+            
+            if len(contents) > 5:
+                cls.write(contents)
+                contents = []
+          
+        cls.write(contents)
+        return contents
+        
